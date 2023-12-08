@@ -120,9 +120,12 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
       Some(Segment::LProof(steps)) => match self.0.next() {
         Some(Segment::Add(idx, vec)) =>
           Some(Step::Add(idx, AddStep(vec), Some(Proof::LRAT(steps)))),
-        _ => panic!("'l' step not preceded by 'a' step")
+        Some(Segment::Xor(idx, vec)) =>
+          Some(Step::Xor(idx, vec, Some(Proof::LRAT(steps)))),
+        _ => panic!("'l' step not preceded by 'a' or 'x' step")
       },
       Some(Segment::Todo(idx)) => Some(Step::Todo(idx)),
+      Some(Segment::Xor(idx, vec)) => Some(Step::Xor(idx, vec, None)),
     }
   }
 }
@@ -144,10 +147,13 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
       Some(Segment::LProof(steps)) => match self.0.next() {
         Some(Segment::Add(idx, vec)) =>
           Some(ElabStep::Add(idx, AddStep(vec), steps)),
-        _ => panic!("'l' step not preceded by 'a' step")
+        Some(Segment::Xor(idx, vec)) =>
+          Some(ElabStep::Xor(idx, vec, Some(Proof::LRAT(steps)))),
+        _ => panic!("'l' step not preceded by 'a' or 'x' step")
       },
       Some(Segment::Final(_, _)) => panic!("unexpected 'f' segment"),
       Some(Segment::Todo(_)) => self.next(),
+      Some(Segment::Xor(idx, vec)) => Some(ElabStep::Xor(idx, vec, None)),
     }
   }
 }

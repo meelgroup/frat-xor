@@ -1007,7 +1007,11 @@ fn elab<M: Mode>(
         ctx.insert(i, ls.is_empty(), ls.into());
       }
 
-      Step::Todo(_) => ()
+      Step::Todo(_) => (),
+    
+      Step::Xor(i, ls, p) => {
+        ElabStep::Xor(i, ls, p).write(w)?
+      }
     }
   }
 
@@ -1170,7 +1174,19 @@ fn trim(
           delete(i)?;
         }
         Ok(())
-      })?
+      })?,
+
+      ElabStep::Xor(_i, ls, p) => {
+        if let Some(Proof::LRAT(is)) = p {
+          k += 1;
+          write!(lrat, "{} x", k)?;
+          for &x in &*ls { write!(lrat, " {}", x)? }
+          write!(lrat, " 0")?;
+
+          for &x in &*is { write!(lrat, " {}", x)? }
+          writeln!(lrat, " 0")?;
+        }
+      }
     }
   }
 
@@ -1366,6 +1382,10 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
       ElabStep::Del(i) => {
         Step::Del(i, ctx.remove(&i).unwrap()).write(w)?;
       }
+
+      ElabStep::Xor(i, ls, p) => {
+        StepRef::Xor(i, &ls, p.as_ref().map(Proof::as_ref)).write(w)?;
+      },
     }
   }
 

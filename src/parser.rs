@@ -57,6 +57,7 @@ pub trait Mode: Default {
         assert!(self.unum(it).unwrap() == 0, "parse error at todo, expected 1 number");
         Segment::Todo(n)
       }
+      Some(b'x') => Segment::Xor(self.unum(it).unwrap(), self.ivec(it)),
       Some(k) => panic!("parse error at char {}: bad step {:?}", ch(), k as char),
       None => panic!("parse error at char {}: bad step None", ch()),
     }
@@ -85,6 +86,7 @@ pub enum Segment {
   Del(u64, Vec<i64>),
   Final(u64, Vec<i64>),
   Todo(u64),
+  Xor(u64, Vec<i64>),
 }
 
 #[derive(Default)] pub struct Bin;
@@ -351,7 +353,7 @@ impl<M: Mode, I: Iterator<Item=u8>> Iterator for DRATParser<M, I> {
 	fn next(&mut self) -> Option<DRATStep> { self.mode.drat_step(&mut self.it) }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Proof {
   LRAT(Vec<i64>),
 }
@@ -443,6 +445,7 @@ pub enum Step {
   Reloc(Vec<(u64, u64)>),
   Final(u64, Vec<i64>),
   Todo(u64),
+  Xor(u64, Vec<i64>, Option<Proof>),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -454,6 +457,7 @@ pub enum StepRef<'a> {
   Reloc(&'a [(u64, u64)]),
   Final(u64, &'a [i64]),
   Todo(u64),
+  Xor(u64, &'a [i64], Option<ProofRef<'a>>),
 }
 
 impl Step {
@@ -465,7 +469,8 @@ impl Step {
       Step::Del(i, ref v) => StepRef::Del(i, v),
       Step::Reloc(ref v) => StepRef::Reloc(v),
       Step::Final(i, ref v) => StepRef::Final(i, v),
-      Step::Todo(i) => StepRef::Todo(i)
+      Step::Todo(i) => StepRef::Todo(i),
+      Step::Xor(i, ref v, ref p) => StepRef::Xor(i, v, p.as_ref().map(Proof::as_ref))
     }
   }
 }
@@ -483,6 +488,7 @@ pub enum ElabStep {
   Add(u64, AddStep, Vec<i64>),
   Reloc(Vec<(u64, u64)>),
   Del(u64),
+  Xor(u64, Vec<i64>, Option<Proof>),
 }
 
 #[derive(Debug, Clone)]
@@ -492,6 +498,7 @@ pub enum ElabStepRef<'a> {
   Add(u64, AddStepRef<'a>, &'a [i64]),
   Reloc(&'a [(u64, u64)]),
   Del(u64),
+  Xor(u64, &'a [i64], Option<ProofRef<'a>>),
 }
 
 impl ElabStep {
@@ -502,6 +509,7 @@ impl ElabStep {
       ElabStep::Add(i, ref v, ref p) => ElabStepRef::Add(i, v.as_ref(), p),
       ElabStep::Reloc(ref v) => ElabStepRef::Reloc(v),
       ElabStep::Del(i) => ElabStepRef::Del(i),
+      ElabStep::Xor(i, ref v, ref p) => ElabStepRef::Xor(i, v, p.as_ref().map(Proof::as_ref)),
     }
   }
 }
