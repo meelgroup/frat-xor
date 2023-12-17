@@ -1009,8 +1009,20 @@ fn elab<M: Mode>(
 
       Step::Todo(_) => (),
     
-      Step::Xor(i, ls, p) => {
-        ElabStep::Xor(i, ls, p).write(w)?
+      Step::OrigXor(i, ls) => {
+        ElabStep::OrigXor(i, ls).write(w)?
+      }
+
+      Step::AddXor(i, ls, p) => {
+        if let Some(Proof::LRAT(is)) = p {
+          ElabStep::AddXor(i, ls, is).write(w)?
+        } else {
+          panic!("add XOR step has no proof");
+        }
+      }
+
+      Step::DelXor(i, _ls) => {
+        ElabStep::DelXor(i).write(w)?
       }
     }
   }
@@ -1059,20 +1071,28 @@ fn trim(
   let mut used_origs = vec![0u8; k as usize];
   let mut rats = vec![];
 
-  while let Some(ElabStep::Orig(_, _)) = bp.peek() {
-    if let Some(ElabStep::Orig(i, ls)) = bp.next() {
-      // eprintln!("-> Orig{:?}", (&i, &ls));
-      let j = *cnf.get(&PermClauseRef(&ls)).unwrap_or_else( // Find position of clause in original problem
-        || panic!("Orig step {} refers to nonexistent clause {:?}", i, ls));
-      let r = &mut used_origs[j as usize - 1];
-      *r = r.saturating_add(1);
-      assert!(map.insert(i, j).is_none(), "Multiple orig steps with duplicate IDs");
-      // eprintln!("{} -> {}", i, j);
-      if ls.is_empty() {
-        writeln!(lrat, "{} 0 {} 0", k+1, j)?;
-        return Ok(())
-      }
-    } else {unreachable!()}
+  while let Some(s) = bp.peek() {
+    if let ElabStep::Orig(_, _) = s {
+      if let Some(ElabStep::Orig(i, ls)) = bp.next() {
+        // eprintln!("-> Orig{:?}", (&i, &ls));
+        let j = *cnf.get(&PermClauseRef(&ls)).unwrap_or_else( // Find position of clause in original problem
+          || panic!("Orig step {} refers to nonexistent clause {:?}", i, ls));
+        let r = &mut used_origs[j as usize - 1];
+        *r = r.saturating_add(1);
+        assert!(map.insert(i, j).is_none(), "Multiple orig steps with duplicate IDs");
+        // eprintln!("{} -> {}", i, j);
+        if ls.is_empty() {
+          writeln!(lrat, "{} 0 {} 0", k+1, j)?;
+          return Ok(())
+        }
+      } else {unreachable!()}
+    } else if let ElabStep::OrigXor(_, _) = s {
+      if let Some(ElabStep::OrigXor(_, _)) = bp.next() {
+        continue;
+      } else {unreachable!()}
+    } else {
+      break;
+    }
   }
 
   DeleteLine::with(lrat, k, |line| {
@@ -1176,17 +1196,20 @@ fn trim(
         Ok(())
       })?,
 
-      ElabStep::Xor(_i, ls, p) => {
-        if let Some(Proof::LRAT(is)) = p {
-          k += 1;
-          write!(lrat, "{} x", k)?;
-          for &x in &*ls { write!(lrat, " {}", x)? }
-          write!(lrat, " 0")?;
+      ElabStep::OrigXor(_, _) =>
+        panic!("Orig XOR steps must come at the beginning of the temp file"),
 
-          for &x in &*is { write!(lrat, " {}", x)? }
-          writeln!(lrat, " 0")?;
-        }
+      ElabStep::AddXor(_i, ls, is) => {
+        k += 1;
+        write!(lrat, "{} x", k)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        write!(lrat, " 0")?;
+
+        for &x in &*is { write!(lrat, " {}", x)? }
+        writeln!(lrat, " 0")?;
       }
+
+      ElabStep::DelXor(i) => writeln!(lrat, "{} x d {} 0", k, i)?,
     }
   }
 
@@ -1354,6 +1377,7 @@ pub fn lratchk(mut args: impl Iterator<Item=String>) -> io::Result<()> {
 fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
 
   let mut ctx: HashMap<u64, Vec<i64>> = HashMap::default();
+  let mut ctx_xor: HashMap<u64, Vec<i64>> = HashMap::default();
   for s in ElabStepIter(BackParser::new(Bin, elab)?) {
     // eprintln!("-> {:?}", s);
 
@@ -1383,13 +1407,24 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
         Step::Del(i, ctx.remove(&i).unwrap()).write(w)?;
       }
 
-      ElabStep::Xor(i, ls, p) => {
-        StepRef::Xor(i, &ls, p.as_ref().map(Proof::as_ref)).write(w)?;
-      },
+      ElabStep::OrigXor(i, ls) => {
+        StepRef::OrigXor(i, &ls).write(w)?;
+        ctx_xor.insert(i, ls);
+      }
+
+      ElabStep::AddXor(i, ls, is) => {
+        StepRef::add_xor(i, &ls, Some(&is)).write(w)?;
+        ctx_xor.insert(i, ls);
+      }
+
+      ElabStep::DelXor(i) => {
+        Step::DelXor(i, ctx.remove(&i).unwrap()).write(w)?;
+      }
     }
   }
 
   for (i, s) in ctx { Step::Final(i, s).write(w)? }
+  // todo: add XOR to final
 
   Ok(())
 }

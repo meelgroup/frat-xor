@@ -13,7 +13,7 @@ fn subsumes(clause: &[i64], clause2: &[i64]) -> bool {
 
 pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
   let mut bp = StepIter(BackParser::new(mode, proof)?).peekable();
-  let (mut orig, mut added, mut deleted, mut fin, mut _xor) = (0i64, 0i64, 0i64, 0i64, 0i64);
+  let (mut orig, mut added, mut deleted, mut fin, mut _orig_xor, mut _add_xor, mut _del_xor) = (0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64);
   let (mut dirty_orig, mut dirty_add, mut double_del, mut double_fin) = (0i64, 0i64, 0i64, 0i64);
   let mut missing = 0i64;
   let mut active: HashMap<u64, (bool, Clause)> = HashMap::default();
@@ -95,8 +95,14 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
         }
       },
       Step::Todo(i) => *todos.entry(i).or_insert(0i64) += 1,
-      Step::Xor(_i, _lits, _p) => {
-        _xor += 1;
+      Step::OrigXor(_i, _lits) => {
+        _orig_xor += 1;
+      },
+      Step::AddXor(_i, _lits, _p) => {
+        _add_xor += 1;
+      },
+      Step::DelXor(_i, _lits) => {
+        _del_xor += 1;
       },
     }
   }

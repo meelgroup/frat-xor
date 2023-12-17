@@ -46,11 +46,23 @@ pub trait Mode: Default {
   fn segment_mut(&self, ch: impl FnOnce() -> usize, it: &mut impl Iterator<Item=u8>) -> Segment {
     match self.keyword(it) {
       Some(b'c') => Segment::Comment(self.comment(it)),
-      Some(b'a') => Segment::Add(self.unum(it).unwrap(), self.ivec(it)),
-      Some(b'd') => Segment::Del(self.unum(it).unwrap(), self.ivec(it)),
+      Some(b'a') => match self.unum(it) {
+        Some(0) => Segment::AddXor(),
+        Some(idx) => Segment::Add(idx, self.ivec(it)),
+        None => Segment::AddXor(),
+      }
+      Some(b'd') => match self.unum(it) {
+        Some(0) => Segment::DelXor(),
+        Some(idx) => Segment::Del(idx, self.ivec(it)),
+        None => Segment::DelXor(),
+      }
       Some(b'f') => Segment::Final(self.unum(it).unwrap(), self.ivec(it)),
       Some(b'l') => Segment::LProof(self.ivec(it)),
-      Some(b'o') => Segment::Orig(self.unum(it).unwrap(), self.ivec(it)),
+      Some(b'o') => match self.unum(it) {
+        Some(0) => Segment::OrigXor(),
+        Some(idx) => Segment::Orig(idx, self.ivec(it)),
+        None => Segment::OrigXor(),
+      }
       Some(b'r') => Segment::Reloc(self.uvec2(it)),
       Some(b't') => {
         let n = self.unum(it).unwrap();
@@ -87,6 +99,9 @@ pub enum Segment {
   Final(u64, Vec<i64>),
   Todo(u64),
   Xor(u64, Vec<i64>),
+  OrigXor(),
+  AddXor(),
+  DelXor(),
 }
 
 #[derive(Default)] pub struct Bin;
@@ -353,7 +368,7 @@ impl<M: Mode, I: Iterator<Item=u8>> Iterator for DRATParser<M, I> {
 	fn next(&mut self) -> Option<DRATStep> { self.mode.drat_step(&mut self.it) }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Proof {
   LRAT(Vec<i64>),
 }
@@ -445,7 +460,9 @@ pub enum Step {
   Reloc(Vec<(u64, u64)>),
   Final(u64, Vec<i64>),
   Todo(u64),
-  Xor(u64, Vec<i64>, Option<Proof>),
+  OrigXor(u64, Vec<i64>),
+  AddXor(u64, Vec<i64>, Option<Proof>),
+  DelXor(u64, Vec<i64>),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -457,7 +474,9 @@ pub enum StepRef<'a> {
   Reloc(&'a [(u64, u64)]),
   Final(u64, &'a [i64]),
   Todo(u64),
-  Xor(u64, &'a [i64], Option<ProofRef<'a>>),
+  OrigXor(u64, &'a [i64]),
+  AddXor(u64, &'a [i64], Option<ProofRef<'a>>),
+  DelXor(u64, &'a [i64]),
 }
 
 impl Step {
@@ -470,7 +489,9 @@ impl Step {
       Step::Reloc(ref v) => StepRef::Reloc(v),
       Step::Final(i, ref v) => StepRef::Final(i, v),
       Step::Todo(i) => StepRef::Todo(i),
-      Step::Xor(i, ref v, ref p) => StepRef::Xor(i, v, p.as_ref().map(Proof::as_ref))
+      Step::OrigXor(i, ref v) => StepRef::OrigXor(i, v),
+      Step::AddXor(i, ref v, ref p) => StepRef::AddXor(i, v, p.as_ref().map(Proof::as_ref)),
+      Step::DelXor(i, ref v) => StepRef::DelXor(i, v),
     }
   }
 }
@@ -478,6 +499,9 @@ impl Step {
 impl<'a> StepRef<'a> {
   #[inline] pub fn add(idx: u64, step: &'a [i64], proof: Option<&'a [i64]>) -> Self {
     Self::Add(idx, AddStepRef::One(step), proof.map(ProofRef::LRAT))
+  }
+  #[inline] pub fn add_xor(idx: u64, ls: &'a [i64], proof: Option<&'a [i64]>) -> Self {
+    Self::AddXor(idx, ls, proof.map(ProofRef::LRAT))
   }
 }
 
@@ -488,7 +512,9 @@ pub enum ElabStep {
   Add(u64, AddStep, Vec<i64>),
   Reloc(Vec<(u64, u64)>),
   Del(u64),
-  Xor(u64, Vec<i64>, Option<Proof>),
+  OrigXor(u64, Vec<i64>),
+  AddXor(u64, Vec<i64>, Vec<i64>),
+  DelXor(u64),
 }
 
 #[derive(Debug, Clone)]
@@ -498,7 +524,9 @@ pub enum ElabStepRef<'a> {
   Add(u64, AddStepRef<'a>, &'a [i64]),
   Reloc(&'a [(u64, u64)]),
   Del(u64),
-  Xor(u64, &'a [i64], Option<ProofRef<'a>>),
+  OrigXor(u64, &'a [i64]),
+  AddXor(u64, &'a [i64], &'a [i64]),
+  DelXor(u64),
 }
 
 impl ElabStep {
@@ -509,7 +537,9 @@ impl ElabStep {
       ElabStep::Add(i, ref v, ref p) => ElabStepRef::Add(i, v.as_ref(), p),
       ElabStep::Reloc(ref v) => ElabStepRef::Reloc(v),
       ElabStep::Del(i) => ElabStepRef::Del(i),
-      ElabStep::Xor(i, ref v, ref p) => ElabStepRef::Xor(i, v, p.as_ref().map(Proof::as_ref)),
+      ElabStep::OrigXor(i, ref v) => ElabStepRef::OrigXor(i, v),
+      ElabStep::AddXor(i, ref v, ref p) => ElabStepRef::AddXor(i, v, p),
+      ElabStep::DelXor(i) => ElabStepRef::DelXor(i),
     }
   }
 }
