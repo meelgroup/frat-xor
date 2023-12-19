@@ -1211,9 +1211,8 @@ fn trim(
       ElabStep::OrigXor(_, _) =>
         panic!("Orig XOR steps must come at the beginning of the temp file"),
 
-      ElabStep::AddXor(_i, ls, is) => {
-        k += 1;
-        write!(lrat, "{} x", k)?;
+      ElabStep::AddXor(i, ls, is) => {
+        write!(lrat, "x {}", i)?;
         for &x in &*ls { write!(lrat, " {}", x)? }
         write!(lrat, " 0")?;
 
@@ -1221,12 +1220,12 @@ fn trim(
         writeln!(lrat, " 0")?;
       }
 
-      ElabStep::DelXor(i) => writeln!(lrat, "{} x d {} 0", k, i)?,
+      ElabStep::DelXor(i) => writeln!(lrat, "x d {} 0", i)?,
 
       ElabStep::Imply(i, ls, is) => {
         k += 1;
         map.insert(i, k);
-        write!(lrat, "{} i", k)?;
+        write!(lrat, "i {}", k)?;
         for &x in &*ls { write!(lrat, " {}", x)? }
         write!(lrat, " 0")?;
 
