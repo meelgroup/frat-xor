@@ -13,8 +13,8 @@ fn subsumes(clause: &[i64], clause2: &[i64]) -> bool {
 
 pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
   let mut bp = StepIter(BackParser::new(mode, proof)?).peekable();
-  let (mut orig, mut added, mut deleted, mut fin, mut _orig_xor, mut _add_xor, mut _del_xor) = (0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64);
-  let (mut dirty_orig, mut dirty_add, mut double_del, mut double_fin) = (0i64, 0i64, 0i64, 0i64);
+  let (mut orig, mut added, mut deleted, mut fin, mut _orig_xor, mut _add_xor, mut _del_xor, mut _imply) = (0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64);
+  let (mut dirty_orig, mut dirty_add, mut dirty_imply, mut double_del, mut double_fin) = (0i64, 0i64, 0i64, 0i64, 0i64);
   let mut missing = 0i64;
   let mut active: HashMap<u64, (bool, Clause)> = HashMap::default();
   let mut todos = HashMap::default();
@@ -104,6 +104,18 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
       Step::DelXor(_i, _lits) => {
         _del_xor += 1;
       },
+      Step::Imply(i, lits, _p) => {
+        _imply += 1;
+        if let Some((_need, lits2)) = active.remove(&i) {
+          if !subsumes(&lits2, &lits) {
+            eprintln!("added {:?}, removed {:?}", lits, lits2);
+            bad = true;
+          }
+        } else {
+          dirty_imply += 1;
+          // eprintln!("implied clause {} {:?} never finalized", i, lits);
+        }
+      },
     }
   }
   println!("{} orig + {} added - {} deleted - {} finalized = {}",
@@ -114,8 +126,8 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
   for (k, v) in todo_vec.into_iter().take(5).filter(|&(_, v)| v != 0) {
     println!("type {}: {}", k, v);
   }
-  if dirty_orig != 0 || dirty_add != 0 {
-    eprintln!("{} original + {} added never finalized", dirty_orig, dirty_add);
+  if dirty_orig != 0 || dirty_add != 0 || dirty_imply != 0 {
+    eprintln!("{} original + {} added + {} implied never finalized", dirty_orig, dirty_add, dirty_imply);
     bad = true;
   }
   if double_del != 0 || double_fin != 0 {

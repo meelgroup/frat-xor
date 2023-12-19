@@ -1024,6 +1024,18 @@ fn elab<M: Mode>(
       Step::DelXor(i, _ls) => {
         ElabStep::DelXor(i).write(w)?
       }
+
+      Step::Imply(i, ls, p) => {
+        ctx.step = i;
+        let c = ctx.remove(i);
+        c.check_subsumed(&ls, ctx.step);
+
+        if let Some(Proof::LRAT(is)) = p {
+          ElabStep::Imply(i, ls, is).write(w)?
+        } else {
+          panic!("imply step has no proof");
+        }
+      }
     }
   }
 
@@ -1210,6 +1222,17 @@ fn trim(
       }
 
       ElabStep::DelXor(i) => writeln!(lrat, "{} x d {} 0", k, i)?,
+
+      ElabStep::Imply(i, ls, is) => {
+        k += 1;
+        map.insert(i, k);
+        write!(lrat, "{} i", k)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        write!(lrat, " 0")?;
+
+        for &x in &*is { write!(lrat, " {}", x)? }
+        writeln!(lrat, " 0")?;
+      }
     }
   }
 
@@ -1419,6 +1442,11 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
 
       ElabStep::DelXor(i) => {
         Step::DelXor(i, ctx.remove(&i).unwrap()).write(w)?;
+      }
+
+      ElabStep::Imply(i, ls, is) => {
+        StepRef::imply(i, &ls, Some(&is)).write(w)?;
+        ctx.insert(i, ls);
       }
     }
   }

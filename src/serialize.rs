@@ -127,6 +127,9 @@ impl<'a> Serialize<Bin> for StepRef<'a> {
       StepRef::AddXor(idx, vec, Some(ProofRef::LRAT(steps))) =>
         (((b'a', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
       StepRef::DelXor(idx, vec) => ((b'd', (0u8, b'x')), (idx, vec)).write(w),
+      StepRef::Imply(idx, vec, None) => (b'i', (idx, vec)).write(w),
+      StepRef::Imply(idx, vec, Some(ProofRef::LRAT(steps))) =>
+        ((b'i', (idx, vec)), (b'l', steps)).write(w),
     }
   }
 }
@@ -176,6 +179,13 @@ impl<'a> Serialize<Ascii> for StepRef<'a> {
       StepRef::DelXor(idx, vec) => {
         write!(w, "d x {}  ", idx)?; vec.write(w)?; writeln!(w)
       }
+      StepRef::Imply(idx, vec, pf) => {
+        write!(w, "i {}  ", idx)?; vec.write(w)?;
+        if let Some(ProofRef::LRAT(steps)) = pf {
+          write!(w, "  l ")?; steps.write(w)?;
+        }
+        writeln!(w)
+      }
     }
   }
 }
@@ -200,6 +210,8 @@ impl<'a> Serialize<Bin> for ElabStepRef<'a> {
       ElabStepRef::AddXor(idx, vec, steps) =>
         (((b'a', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
       ElabStepRef::DelXor(idx) => ((b'd', (0u8, b'x')), (idx, 0u8)).write(w),
+      ElabStepRef::Imply(idx, vec, steps) =>
+        ((b'i', (idx, vec)), (b'l', steps)).write(w),
     }
   }
 }
@@ -217,6 +229,8 @@ impl<'a> Serialize<Ascii> for ElabStepRef<'a> {
       ElabStepRef::AddXor(idx, vec, steps) => 
         StepRef::AddXor(idx, vec, Some(ProofRef::LRAT(steps))).write(w),
       ElabStepRef::DelXor(idx) => writeln!(w, "d x {}", idx),
+      ElabStepRef::Imply(idx, vec, steps) =>
+        StepRef::Imply(idx, vec, Some(ProofRef::LRAT(steps))).write(w),
     }
   }
 }
