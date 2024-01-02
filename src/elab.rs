@@ -1036,6 +1036,30 @@ fn elab<M: Mode>(
           panic!("imply step has no proof");
         }
       }
+
+      Step::ImplyXor(i, ls, p) => {
+        if let Some(Proof::LRAT(is)) = p {
+          for &i in &is {
+            let i = i.unsigned_abs();
+            let c = ctx.get(i);
+            let cl = &mut ctx.clauses[c];
+            if !cl.marked { // If the necessary clause is not active yet
+              cl.marked = true; // Make it active
+              if let [a, b, ..] = *cl.lits {
+                ctx.watch.del(false, a, c);
+                ctx.watch.del(false, b, c);
+                ctx.watch.add(true, a, c);
+                ctx.watch.add(true, b, c);
+              }
+              if !full { ElabStep::Del(i).write(w)? }
+            }
+          }
+
+          ElabStep::ImplyXor(i, ls, is).write(w)?
+        } else {
+          panic!("imply XOR step has no proof");
+        }
+      } 
     }
   }
 
@@ -1226,6 +1250,15 @@ fn trim(
         k += 1;
         map.insert(i, k);
         write!(lrat, "i {}", k)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        write!(lrat, " 0")?;
+
+        for &x in &*is { write!(lrat, " {}", x)? }
+        writeln!(lrat, " 0")?;
+      }
+
+      ElabStep::ImplyXor(i, ls, is) => {
+        write!(lrat, "i x {}", i)?;
         for &x in &*ls { write!(lrat, " {}", x)? }
         write!(lrat, " 0")?;
 
@@ -1446,6 +1479,11 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
       ElabStep::Imply(i, ls, is) => {
         StepRef::imply(i, &ls, Some(&is)).write(w)?;
         ctx.insert(i, ls);
+      }
+
+      ElabStep::ImplyXor(i, ls, is) => {
+        StepRef::imply_xor(i, &ls, Some(&is)).write(w)?;
+        ctx_xor.insert(i, ls);
       }
     }
   }

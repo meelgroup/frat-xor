@@ -70,7 +70,11 @@ pub trait Mode: Default {
         Segment::Todo(n)
       }
       Some(b'x') => Segment::Xor(self.unum(it).unwrap(), self.ivec(it)),
-      Some(b'i') => Segment::Imply(self.unum(it).unwrap(), self.ivec(it)),
+      Some(b'i') => match self.unum(it) { 
+        Some(0) => Segment::ImplyXor(),
+        Some(idx) => Segment::Imply(idx, self.ivec(it)),
+        None => Segment::ImplyXor(),
+      }
       Some(k) => panic!("parse error at char {}: bad step {:?}", ch(), k as char),
       None => panic!("parse error at char {}: bad step None", ch()),
     }
@@ -104,6 +108,7 @@ pub enum Segment {
   AddXor(),
   DelXor(),
   Imply(u64, Vec<i64>),
+  ImplyXor(),
 }
 
 #[derive(Default)] pub struct Bin;
@@ -466,6 +471,7 @@ pub enum Step {
   AddXor(u64, Vec<i64>, Option<Proof>),
   DelXor(u64, Vec<i64>),
   Imply(u64, Vec<i64>, Option<Proof>),
+  ImplyXor(u64, Vec<i64>, Option<Proof>),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -481,6 +487,7 @@ pub enum StepRef<'a> {
   AddXor(u64, &'a [i64], Option<ProofRef<'a>>),
   DelXor(u64, &'a [i64]),
   Imply(u64, &'a [i64], Option<ProofRef<'a>>),
+  ImplyXor(u64, &'a [i64], Option<ProofRef<'a>>),
 }
 
 impl Step {
@@ -497,6 +504,7 @@ impl Step {
       Step::AddXor(i, ref v, ref p) => StepRef::AddXor(i, v, p.as_ref().map(Proof::as_ref)),
       Step::DelXor(i, ref v) => StepRef::DelXor(i, v),
       Step::Imply(i, ref v, ref p) => StepRef::Imply(i, v, p.as_ref().map(Proof::as_ref)),
+      Step::ImplyXor(i, ref v, ref p) => StepRef::ImplyXor(i, v, p.as_ref().map(Proof::as_ref)),
     }
   }
 }
@@ -511,6 +519,9 @@ impl<'a> StepRef<'a> {
   #[inline] pub fn imply(idx: u64, ls: &'a [i64], proof: Option<&'a [i64]>) -> Self {
     Self::Imply(idx, ls, proof.map(ProofRef::LRAT))
   }
+  #[inline] pub fn imply_xor(idx: u64, ls: &'a [i64], proof: Option<&'a [i64]>) -> Self {
+    Self::ImplyXor(idx, ls, proof.map(ProofRef::LRAT))
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -524,6 +535,7 @@ pub enum ElabStep {
   AddXor(u64, Vec<i64>, Vec<i64>),
   DelXor(u64),
   Imply(u64, Vec<i64>, Vec<i64>),
+  ImplyXor(u64, Vec<i64>, Vec<i64>),
 }
 
 #[derive(Debug, Clone)]
@@ -537,6 +549,7 @@ pub enum ElabStepRef<'a> {
   AddXor(u64, &'a [i64], &'a [i64]),
   DelXor(u64),
   Imply(u64, &'a [i64], &'a [i64]),
+  ImplyXor(u64, &'a [i64], &'a [i64]),
 }
 
 impl ElabStep {
@@ -551,6 +564,7 @@ impl ElabStep {
       ElabStep::AddXor(i, ref v, ref p) => ElabStepRef::AddXor(i, v, p),
       ElabStep::DelXor(i) => ElabStepRef::DelXor(i),
       ElabStep::Imply(i, ref v, ref p) => ElabStepRef::Imply(i, v, p),
+      ElabStep::ImplyXor(i, ref v, ref p) => ElabStepRef::ImplyXor(i, v, p),
     }
   }
 }
