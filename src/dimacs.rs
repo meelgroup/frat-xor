@@ -8,7 +8,7 @@ enum Token {
 use self::Token::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum Ident { Comment, Problem, Cnf, Del }
+enum Ident { Comment, Problem, Cnf, Del, Xor }
 
 use self::Ident::*;
 
@@ -57,6 +57,11 @@ impl<I: Iterator<Item=u8>> Lexer<I> {
     Comment
   }
 
+  fn scan_xor(&mut self) -> Ident {
+    self.skip_line();
+    Xor
+  }
+
   fn scan_keyword(&mut self) -> Ident {
     self.buffer.clear();
     self.buffer.push(self.peek);
@@ -70,6 +75,7 @@ impl<I: Iterator<Item=u8>> Lexer<I> {
       b"p"   => Problem,
       b"cnf" => Cnf,
       b"d"   => Del,
+      b"x"   => self.scan_xor(),
       _      => panic!("unknown keyword")
     }
   }
@@ -95,6 +101,7 @@ impl<I: Iterator<Item=u8>> Iterator for Lexer<I> {
     match self.peek {
       b'a'..=b'z' => match self.scan_keyword() {
         Comment => self.next(),
+        Xor => self.next(),
         tk => Some(Ident(tk))
       },
       b'0'..=b'9' => Some(Nat(self.scan_nat())),
