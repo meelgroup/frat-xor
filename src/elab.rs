@@ -1440,7 +1440,7 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
       }
 
       ElabStep::DelXor(i) => {
-        Step::DelXor(i, ctx.remove(&i).unwrap()).write(w)?;
+        Step::DelXor(i, ctx_xor.remove(&i).unwrap()).write(w)?;
       }
 
       ElabStep::Imply(i, ls, is) => {
