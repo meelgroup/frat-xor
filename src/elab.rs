@@ -1060,6 +1060,13 @@ fn elab<M: Mode>(
           panic!("imply XOR step has no proof");
         }
       } 
+
+      Step::FinalXor(i, _ls) => {
+        if let Some(j) = last_non_finalize {
+          panic!("xor step {}: \
+            'f x' steps should only appear at the end of the proof (step {} appears later).", i, j);
+        }
+      }
     }
   }
 

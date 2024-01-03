@@ -56,7 +56,11 @@ pub trait Mode: Default {
         Some(idx) => Segment::Del(idx, self.ivec(it)),
         None => Segment::DelXor(),
       }
-      Some(b'f') => Segment::Final(self.unum(it).unwrap(), self.ivec(it)),
+      Some(b'f') => match self.unum(it) {
+        Some(0) => Segment::FinalXor(),
+        Some(idx) => Segment::Final(idx, self.ivec(it)),
+        None => Segment::FinalXor(),
+      }
       Some(b'l') => Segment::LProof(self.ivec(it)),
       Some(b'o') => match self.unum(it) {
         Some(0) => Segment::OrigXor(),
@@ -109,6 +113,7 @@ pub enum Segment {
   DelXor(),
   Imply(u64, Vec<i64>),
   ImplyXor(),
+  FinalXor(),
 }
 
 #[derive(Default)] pub struct Bin;
@@ -472,6 +477,7 @@ pub enum Step {
   DelXor(u64, Vec<i64>),
   Imply(u64, Vec<i64>, Option<Proof>),
   ImplyXor(u64, Vec<i64>, Option<Proof>),
+  FinalXor(u64, Vec<i64>),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -488,6 +494,7 @@ pub enum StepRef<'a> {
   DelXor(u64, &'a [i64]),
   Imply(u64, &'a [i64], Option<ProofRef<'a>>),
   ImplyXor(u64, &'a [i64], Option<ProofRef<'a>>),
+  FinalXor(u64, &'a [i64]),
 }
 
 impl Step {
@@ -505,6 +512,7 @@ impl Step {
       Step::DelXor(i, ref v) => StepRef::DelXor(i, v),
       Step::Imply(i, ref v, ref p) => StepRef::Imply(i, v, p.as_ref().map(Proof::as_ref)),
       Step::ImplyXor(i, ref v, ref p) => StepRef::ImplyXor(i, v, p.as_ref().map(Proof::as_ref)),
+      Step::FinalXor(i, ref v) => StepRef::FinalXor(i, v),
     }
   }
 }

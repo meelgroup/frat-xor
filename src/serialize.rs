@@ -133,6 +133,7 @@ impl<'a> Serialize<Bin> for StepRef<'a> {
       StepRef::ImplyXor(idx, vec, None) => ((b'i', (0u8, b'x')), (idx, vec)).write(w),
       StepRef::ImplyXor(idx, vec, Some(ProofRef::LRAT(steps))) =>
         (((b'i', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
+      StepRef::FinalXor(idx, vec) => ((b'f', (0u8, b'x')), (idx, vec)).write(w),
     }
   }
 }
@@ -195,6 +196,9 @@ impl<'a> Serialize<Ascii> for StepRef<'a> {
           write!(w, "  l ")?; steps.write(w)?;
         }
         writeln!(w)
+      }
+      StepRef::FinalXor(idx, vec) => {
+        write!(w, "f x {}  ", idx)?; vec.write(w)?; writeln!(w)
       }
     }
   }

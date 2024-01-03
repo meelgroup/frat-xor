@@ -137,13 +137,15 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
         Some(Segment::AddXor()) => Some(Step::AddXor(idx, vec, None)),
         Some(Segment::DelXor()) => Some(Step::DelXor(idx, vec)),
         Some(Segment::ImplyXor()) => Some(Step::ImplyXor(idx, vec, None)),
-        _ => panic!("'x' step not preceded by 'o', 'a', 'd', or 'i' step")
+        Some(Segment::FinalXor()) => Some(Step::FinalXor(idx, vec)),
+        _ => panic!("'x' step not preceded by 'o', 'a', 'd', 'i', or 'f' step")
       }
       Some(Segment::OrigXor()) => panic!("'o' step not followed by a clause or 'x' step"),
       Some(Segment::AddXor()) => panic!("'a' step not followed by a clause or 'x' step"),
       Some(Segment::DelXor()) => panic!("'d' step not followed by a clause or 'x' step"),
       Some(Segment::Imply(idx, vec)) => Some(Step::Imply(idx, vec, None)),
       Some(Segment::ImplyXor()) => panic!("'i' step not followed by a clause or 'x' step"),
+      Some(Segment::FinalXor()) => panic!("'f' step not followed by a clause or 'x' step"),
     }
   }
 }
@@ -182,13 +184,15 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
         Some(Segment::DelXor()) =>
           {assert!(vec.is_empty()); Some(ElabStep::DelXor(idx))},
         Some(Segment::ImplyXor()) => panic!("imply XOR step has no proof"),
-        _ => panic!("'x' step not preceded by 'o', 'a', or 'd' step")
+        Some(Segment::FinalXor()) => panic!("unexpected 'f x' segment"),
+        _ => panic!("'x' step not preceded by 'o', 'a', 'd', 'i', or 'f' step")
       }
       Some(Segment::OrigXor()) => panic!("'o' step not followed by a clause or 'x' step"),
       Some(Segment::AddXor()) => panic!("'a' step not followed by a clause or 'x' step"),
       Some(Segment::DelXor()) => panic!("'d' step not followed by a clause or 'x' step"),
       Some(Segment::Imply(_, _)) => panic!("imply step has no proof"),
       Some(Segment::ImplyXor()) => panic!("'i' step not followed by a clause or 'x' step"),
+      Some(Segment::FinalXor()) => panic!("unexpected 'f' segment"),
     }
   }
 }
