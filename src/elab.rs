@@ -1270,7 +1270,11 @@ fn trim(
 
         for &x in &*is { write!(lrat, " {}", x)? }
 
-        if let Some(Proof::Unit(units)) = u {
+        if let Some(Proof::Unit(mut units)) = u {
+          for ux in units.iter_mut() {
+            *ux = *map.get(&ux).unwrap_or_else(||
+              panic!("add-xor step {}: unit-proof step {:?} not found", i, ux)) as u64;
+          }
           write!(lrat, " u")?;
           for &x in &*units { write!(lrat, " {}", x)? }
         }
@@ -1294,11 +1298,16 @@ fn trim(
         if done {return Ok(())}
       }
 
-      ElabStep::ImplyXor(i, ls, is) => {
+      ElabStep::ImplyXor(i, ls, mut is) => {
         write!(lrat, "i x {}", i)?;
         for &x in &*ls { write!(lrat, " {}", x)? }
         write!(lrat, " 0")?;
 
+        for x in is.iter_mut() {
+          let ux = x.unsigned_abs();
+          *x = *map.get(&ux).unwrap_or_else(||
+            panic!("imply-xor step {}: clause-proof step {:?} not found", i, ux)) as i64;
+        }
         for &x in &*is { write!(lrat, " {}", x)? }
         writeln!(lrat, " 0")?;
       }
