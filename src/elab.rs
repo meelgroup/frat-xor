@@ -1281,12 +1281,15 @@ fn trim(
       ElabStep::Imply(i, ls, is) => {
         k += 1;
         map.insert(i, k);
+        let done = ls.is_empty();
         write!(lrat, "i {}", k)?;
         for &x in &*ls { write!(lrat, " {}", x)? }
         write!(lrat, " 0")?;
 
         for &x in &*is { write!(lrat, " {}", x)? }
         writeln!(lrat, " 0")?;
+
+        if done {return Ok(())}
       }
 
       ElabStep::ImplyXor(i, ls, is) => {
