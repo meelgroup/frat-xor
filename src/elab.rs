@@ -918,6 +918,7 @@ fn elab<M: Mode>(
   mode: M, full: bool, validate: bool, all_hints: bool, frat: File, w: &mut impl ModeWrite<Bin>
 ) -> io::Result<()> {
   let mut origs = Vec::new();
+  let mut orig_xors = Vec::new();
   let ctx = &mut Context::default();
   ctx.full = full;
   ctx.validate_hints = validate;
@@ -1010,7 +1011,7 @@ fn elab<M: Mode>(
       Step::Todo(_) => (),
     
       Step::OrigXor(i, ls) => {
-        ElabStep::OrigXor(i, ls).write(w)?
+        orig_xors.push((i, ls.clone()));
       }
 
       Step::AddXor(i, ls, p, u) => {
@@ -1088,6 +1089,7 @@ fn elab<M: Mode>(
   }
 
   for (i, ls) in origs { ElabStep::Orig(i, ls.into()).write(w)? }
+  for (i, ls) in orig_xors { ElabStep::OrigXor(i, ls).write(w)? }
 
   assert!(finalized_empty_clause, "empty clause never finalized");
   Ok(())
