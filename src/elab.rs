@@ -1013,9 +1013,26 @@ fn elab<M: Mode>(
         ElabStep::OrigXor(i, ls).write(w)?
       }
 
-      Step::AddXor(i, ls, p) => {
+      Step::AddXor(i, ls, p, u) => {
         if let Some(Proof::LRAT(is)) = p {
-          ElabStep::AddXor(i, ls, is).write(w)?
+          if let Some(Proof::Unit(ref units)) = u {
+            for &i in units {
+              let c = ctx.get(i);
+              let cl = &mut ctx.clauses[c];
+              if !cl.marked { // If the necessary clause is not active yet
+                cl.marked = true; // Make it active
+                if let [a, b, ..] = *cl.lits {
+                  ctx.watch.del(false, a, c);
+                  ctx.watch.del(false, b, c);
+                  ctx.watch.add(true, a, c);
+                  ctx.watch.add(true, b, c);
+                }
+                if !full { ElabStep::Del(i).write(w)? }
+              }
+            }
+          }
+
+          ElabStep::AddXor(i, ls, is, u).write(w)?
         } else {
           panic!("add XOR step has no proof");
         }
@@ -1242,12 +1259,18 @@ fn trim(
       ElabStep::OrigXor(_, _) =>
         panic!("Orig XOR steps must come at the beginning of the temp file"),
 
-      ElabStep::AddXor(i, ls, is) => {
+      ElabStep::AddXor(i, ls, is, u) => {
         write!(lrat, "x {}", i)?;
         for &x in &*ls { write!(lrat, " {}", x)? }
         write!(lrat, " 0")?;
 
         for &x in &*is { write!(lrat, " {}", x)? }
+
+        if let Some(Proof::Unit(units)) = u {
+          write!(lrat, " u")?;
+          for &x in &*units { write!(lrat, " {}", x)? }
+        }
+
         writeln!(lrat, " 0")?;
       }
 
@@ -1474,8 +1497,8 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
         ctx_xor.insert(i, ls);
       }
 
-      ElabStep::AddXor(i, ls, is) => {
-        StepRef::add_xor(i, &ls, Some(&is)).write(w)?;
+      ElabStep::AddXor(i, ls, is, u) => {
+        StepRef::add_xor(i, &ls, Some(&is), u.as_ref()).write(w)?;
         ctx_xor.insert(i, ls);
       }
 

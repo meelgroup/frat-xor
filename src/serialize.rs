@@ -118,21 +118,34 @@ impl<'a> Serialize<Bin> for StepRef<'a> {
       StepRef::Add(idx, vec, None) => (b'a', (idx, vec)).write(w),
       StepRef::Add(idx, vec, Some(ProofRef::LRAT(steps))) =>
         ((b'a', (idx, vec)), (b'l', steps)).write(w),
+      StepRef::Add(_, _, Some(ProofRef::Unit(_))) =>
+        panic!("unexpected 'u' step following 'a' step"),
       StepRef::Reloc(relocs) => (b'r', relocs).write(w),
       StepRef::Del(idx, vec) => (b'd', (idx, vec)).write(w),
       StepRef::Final(idx, vec) => (b'f', (idx, vec)).write(w),
       StepRef::Todo(idx) => (b't', (idx, 0u8)).write(w),
       StepRef::OrigXor(idx, vec) => ((b'o', (0u8, b'x')), (idx, vec)).write(w),
-      StepRef::AddXor(idx, vec, None) => ((b'a', (0u8, b'x')), (idx, vec)).write(w),
-      StepRef::AddXor(idx, vec, Some(ProofRef::LRAT(steps))) =>
-        (((b'a', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
+      StepRef::AddXor(idx, vec, pf, uf) => {
+        ((b'a', (0u8, b'x')), (idx, vec)).write(w)?;
+        if let Some(ProofRef::LRAT(steps)) = pf {
+          (b'l', steps).write(w)?;
+          if let Some(ProofRef::Unit(units)) = uf {
+            (b'u', units).write(w)?;
+          }
+        }
+        write!(w, "")
+      },
       StepRef::DelXor(idx, vec) => ((b'd', (0u8, b'x')), (idx, vec)).write(w),
       StepRef::Imply(idx, vec, None) => (b'i', (idx, vec)).write(w),
       StepRef::Imply(idx, vec, Some(ProofRef::LRAT(steps))) =>
         ((b'i', (idx, vec)), (b'l', steps)).write(w),
+      StepRef::Imply(_, _, Some(ProofRef::Unit(_))) =>
+        panic!("unexpected 'u' step following 'i' step"),
       StepRef::ImplyXor(idx, vec, None) => ((b'i', (0u8, b'x')), (idx, vec)).write(w),
       StepRef::ImplyXor(idx, vec, Some(ProofRef::LRAT(steps))) =>
         (((b'i', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
+      StepRef::ImplyXor(_, _, Some(ProofRef::Unit(_))) =>
+        panic!("unexpected 'u' step following 'i' 'x' step"),
       StepRef::FinalXor(idx, vec) => ((b'f', (0u8, b'x')), (idx, vec)).write(w),
     }
   }
@@ -173,10 +186,13 @@ impl<'a> Serialize<Ascii> for StepRef<'a> {
       StepRef::OrigXor(idx, vec) => {
         write!(w, "o x {}  ", idx)?; vec.write(w)?; writeln!(w)
       }
-      StepRef::AddXor(idx, vec, pf) => {
+      StepRef::AddXor(idx, vec, pf, uf) => {
         write!(w, "a x {}  ", idx)?; vec.write(w)?;
         if let Some(ProofRef::LRAT(steps)) = pf {
           write!(w, "  l ")?; steps.write(w)?;
+          if let Some(ProofRef::Unit(units)) = uf {
+            write!(w, " u ")?; units.write(w)?;
+          }
         }
         writeln!(w)
       }
@@ -221,8 +237,12 @@ impl<'a> Serialize<Bin> for ElabStepRef<'a> {
       ElabStepRef::Reloc(relocs) => (b'r', relocs).write(w),
       ElabStepRef::Del(idx) => (b'd', (idx, 0u8)).write(w),
       ElabStepRef::OrigXor(idx, vec) => ((b'o', (0u8, b'x')), (idx, vec)).write(w), 
-      ElabStepRef::AddXor(idx, vec, steps) =>
+      ElabStepRef::AddXor(idx, vec, steps, None) =>
         (((b'a', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
+      ElabStepRef::AddXor(idx, vec, steps, Some(ProofRef::Unit(units))) =>
+        (((b'a', (0u8, b'x')), (idx, vec)), ((b'l', steps), (b'u', units))).write(w),
+      ElabStepRef::AddXor(_, _, _, Some(ProofRef::LRAT(_))) =>
+        panic!("duplicated 'l' step following 'a' 'x' 'l' step"),
       ElabStepRef::DelXor(idx) => ((b'd', (0u8, b'x')), (idx, 0u8)).write(w),
       ElabStepRef::Imply(idx, vec, steps) =>
         ((b'i', (idx, vec)), (b'l', steps)).write(w),
@@ -242,8 +262,8 @@ impl<'a> Serialize<Ascii> for ElabStepRef<'a> {
       ElabStepRef::Reloc(relocs) => StepRef::Reloc(relocs).write(w),
       ElabStepRef::Del(idx) => writeln!(w, "d {}", idx),
       ElabStepRef::OrigXor(idx, vec) => StepRef::OrigXor(idx, vec).write(w),
-      ElabStepRef::AddXor(idx, vec, steps) => 
-        StepRef::AddXor(idx, vec, Some(ProofRef::LRAT(steps))).write(w),
+      ElabStepRef::AddXor(idx, vec, steps, uf) => 
+        StepRef::AddXor(idx, vec, Some(ProofRef::LRAT(steps)), uf).write(w),
       ElabStepRef::DelXor(idx) => writeln!(w, "d x {}", idx),
       ElabStepRef::Imply(idx, vec, steps) =>
         StepRef::Imply(idx, vec, Some(ProofRef::LRAT(steps))).write(w),

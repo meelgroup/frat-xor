@@ -98,8 +98,16 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
       Step::OrigXor(_i, _lits) => {
         _orig_xor += 1;
       },
-      Step::AddXor(_i, _lits, _p) => {
+      Step::AddXor(_i, _lits, _p, u) => {
         _add_xor += 1;
+        if let Some(Proof::Unit(units)) = u {
+          for us in units {
+            let needed = &mut active.get_mut(&us).expect("bad unit hints for add-xor step").0;
+            if !*needed {
+              *needed = true;
+            }
+          }
+        }
       },
       Step::DelXor(_i, _lits) => {
         _del_xor += 1;
@@ -120,7 +128,7 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
         _imply_xor += 1;
         if let Some(Proof::LRAT(steps)) = p {
           for s in steps {
-            let needed = &mut active.get_mut(&s.unsigned_abs()).expect("bad LRAT proof").0;
+            let needed = &mut active.get_mut(&s.unsigned_abs()).expect("bad clause hints for imply-xor step").0;
             if !*needed {
               *needed = true;
             }

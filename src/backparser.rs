@@ -122,7 +122,7 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
           Some(Step::Add(idx, AddStep(vec), Some(Proof::LRAT(steps)))),
         Some(Segment::Xor(idx, vec)) => match self.0.next() {
           Some(Segment::AddXor()) => 
-            Some(Step::AddXor(idx, vec, Some(Proof::LRAT(steps)))),
+            Some(Step::AddXor(idx, vec, Some(Proof::LRAT(steps)), None)),
           Some(Segment::ImplyXor()) =>
             Some(Step::ImplyXor(idx, vec, Some(Proof::LRAT(steps)))),
           _ => panic!("'x' 'l' step not preceded by 'a' or 'i' step")
@@ -134,7 +134,7 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
       Some(Segment::Todo(idx)) => Some(Step::Todo(idx)),
       Some(Segment::Xor(idx, vec)) => match self.0.next() {
         Some(Segment::OrigXor()) => Some(Step::OrigXor(idx, vec)),
-        Some(Segment::AddXor()) => Some(Step::AddXor(idx, vec, None)),
+        Some(Segment::AddXor()) => Some(Step::AddXor(idx, vec, None, None)),
         Some(Segment::DelXor()) => Some(Step::DelXor(idx, vec)),
         Some(Segment::ImplyXor()) => Some(Step::ImplyXor(idx, vec, None)),
         Some(Segment::FinalXor()) => Some(Step::FinalXor(idx, vec)),
@@ -146,6 +146,16 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
       Some(Segment::Imply(idx, vec)) => Some(Step::Imply(idx, vec, None)),
       Some(Segment::ImplyXor()) => panic!("'i' step not followed by a clause or 'x' step"),
       Some(Segment::FinalXor()) => panic!("'f' step not followed by a clause or 'x' step"),
+      Some(Segment::Unit(units)) => match self.0.next() {
+        Some(Segment::LProof(steps)) => match self.0.next() {
+          Some(Segment::Xor(idx, vec)) => match self.0.next() {
+            Some(Segment::AddXor()) => Some(Step::AddXor(idx, vec, Some(Proof::LRAT(steps)), Some(Proof::Unit(units)))),
+            _ => panic!("'x' 'l' 'u' step not preceded by 'a' step"),
+          }
+          _ => panic!("'l' 'u' step not preceded by 'x' step"),
+        }
+        _ => panic!("'u' step not preceded by 'l' step"),
+      }
     }
   }
 }
@@ -168,7 +178,7 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
         Some(Segment::Add(idx, vec)) =>
           Some(ElabStep::Add(idx, AddStep(vec), steps)),
         Some(Segment::Xor(idx, vec)) => match self.0.next() {
-          Some(Segment::AddXor()) => Some(ElabStep::AddXor(idx, vec, steps)),
+          Some(Segment::AddXor()) => Some(ElabStep::AddXor(idx, vec, steps, None)),
           Some(Segment::ImplyXor()) => Some(ElabStep::ImplyXor(idx, vec, steps)),
           _ => panic!("'x' 'l' step not preceded by 'a' or 'i' step")
         }
@@ -193,6 +203,16 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
       Some(Segment::Imply(_, _)) => panic!("imply step has no proof"),
       Some(Segment::ImplyXor()) => panic!("'i' step not followed by a clause or 'x' step"),
       Some(Segment::FinalXor()) => panic!("unexpected 'f' segment"),
+      Some(Segment::Unit(units)) => match self.0.next() {
+        Some(Segment::LProof(steps)) => match self.0.next() {
+          Some(Segment::Xor(idx, vec)) => match self.0.next() {
+            Some(Segment::AddXor()) => Some(ElabStep::AddXor(idx, vec, steps, Some(Proof::Unit(units)))),
+            _ => panic!("'x' 'l' 'u' step not preceded by 'a' step"),
+          }
+          _ => panic!("'l' 'u' step not preceded by 'x' step"),
+        }
+        _ => panic!("'u' step not preceded by 'l' step"),
+      }
     }
   }
 }
