@@ -1149,8 +1149,10 @@ fn trim(
         }
       } else {unreachable!()}
     } else if let ElabStep::OrigXor(_, _) = s {
-      if let Some(ElabStep::OrigXor(_, _)) = bp.next() {
-        continue;
+      if let Some(ElabStep::OrigXor(i, ls)) = bp.next() {
+        write!(lrat, "o x {}", i)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        writeln!(lrat, " 0")?;
       } else {unreachable!()}
     } else {
       break;
