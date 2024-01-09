@@ -918,7 +918,6 @@ fn elab<M: Mode>(
   mode: M, full: bool, validate: bool, all_hints: bool, frat: File, w: &mut impl ModeWrite<Bin>
 ) -> io::Result<()> {
   let mut origs = Vec::new();
-  let mut orig_xors = Vec::new();
   let ctx = &mut Context::default();
   ctx.full = full;
   ctx.validate_hints = validate;
@@ -1011,7 +1010,7 @@ fn elab<M: Mode>(
       Step::Todo(_) => (),
     
       Step::OrigXor(i, ls) => {
-        orig_xors.push((i, ls.clone()));
+        ElabStep::OrigXor(i, ls).write(w)?
       }
 
       Step::AddXor(i, ls, p, u) => {
@@ -1089,7 +1088,6 @@ fn elab<M: Mode>(
   }
 
   for (i, ls) in origs { ElabStep::Orig(i, ls.into()).write(w)? }
-  for (i, ls) in orig_xors { ElabStep::OrigXor(i, ls).write(w)? }
 
   assert!(finalized_empty_clause, "empty clause never finalized");
   Ok(())
@@ -1260,8 +1258,10 @@ fn trim(
         Ok(())
       })?,
 
-      ElabStep::OrigXor(_, _) =>
-        panic!("Orig XOR steps must come at the beginning of the temp file"),
+      ElabStep::OrigXor(i, ls) => {
+        write!(lrat, "o x {}", i)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        writeln!(lrat, " 0")?; },
 
       ElabStep::AddXor(i, ls, is, u) => {
         write!(lrat, "x {}", i)?;
@@ -1289,7 +1289,7 @@ fn trim(
         map.insert(i, k);
         let done = ls.is_empty();
         write!(lrat, "i {}", k)?;
-        for &x in &*ls { write!(lrat, " {}", x)? }
+        for &x in &*ls { write!(lrat, " {}", x)?}
         write!(lrat, " 0")?;
 
         for &x in &*is { write!(lrat, " {}", x)? }
@@ -1300,7 +1300,7 @@ fn trim(
 
       ElabStep::ImplyXor(i, ls, mut is) => {
         write!(lrat, "i x {}", i)?;
-        for &x in &*ls { write!(lrat, " {}", x)? }
+        for &x in &*ls { write!(lrat, " {}", x)?}
         write!(lrat, " 0")?;
 
         for x in is.iter_mut() {
