@@ -109,6 +109,30 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
   type Item = Step;
 
   fn next(&mut self) -> Option<Step> {
+
+    fn _panic<I: Iterator<Item=Segment>>(self_ref: &mut StepIter<I>, msg: &str, mut next: Option<Segment>) -> Option<Step> {
+      if let None = next {
+        next = self_ref.0.next()
+      }
+
+      loop {
+        match next {
+          Some(Segment::Orig(idx, _)) => panic!("orig step {}: {}", idx, msg),
+          Some(Segment::Add(idx, _)) => panic!("add step {}: {}", idx, msg),
+          Some(Segment::Del(idx, _)) => panic!("del step {}: {}", idx, msg),
+          Some(Segment::Final(idx, _)) => panic!("final step {}: {}", idx, msg),
+          Some(Segment::Xor(idx, _)) => match self_ref.0.next() {
+            Some(Segment::DelXor()) => panic!("del-xor step {}: {}", idx, msg),
+            Some(Segment::FinalXor()) => panic!("final-xor step {}: {}", idx, msg),
+            _ => panic!("xor step {}: {}", idx, msg),
+          }
+          Some(Segment::Imply(idx, _)) => panic!("imply step {}: {}", idx, msg),
+          None => panic!("{}", msg),
+          _ => { next = self_ref.0.next() },
+        }
+      }
+    }
+
     match self.0.next() {
       None => None,
       Some(Segment::Comment(s)) => Some(Step::Comment(s)),
@@ -125,11 +149,13 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
             Some(Step::AddXor(idx, vec, Some(Proof::LRAT(steps)), None)),
           Some(Segment::ImplyXor()) =>
             Some(Step::ImplyXor(idx, vec, Some(Proof::LRAT(steps)))),
+          Some(Segment::DelXor()) => panic!("del-xor step {}: 'x' 'l' step not preceded by 'a' or 'i' step", idx),
+          Some(Segment::FinalXor()) => panic!("final-xor step {}: 'x' 'l' step not preceded by 'a' or 'i' step", idx),
           _ => panic!("xor step {}: 'x' 'l' step not preceded by 'a' or 'i' step", idx)
         }
         Some(Segment::Imply(idx, vec)) =>
           Some(Step::Imply(idx, vec, Some(Proof::LRAT(steps)))),
-        _ => panic!("'l' step not preceded by 'a', 'x', or 'i' step")
+        other => _panic(self, "'l' step not preceded by 'a', 'x', or 'i' step", other)
       },
       Some(Segment::Todo(idx)) => Some(Step::Todo(idx)),
       Some(Segment::Xor(idx, vec)) => match self.0.next() {
@@ -140,21 +166,23 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
         Some(Segment::FinalXor()) => Some(Step::FinalXor(idx, vec)),
         _ => panic!("xor step {}: 'x' step not preceded by 'o', 'a', 'd', 'i', or 'f' step", idx)
       }
-      Some(Segment::OrigXor()) => panic!("'o' step not followed by a clause or 'x' step"),
-      Some(Segment::AddXor()) => panic!("'a' step not followed by a clause or 'x' step"),
-      Some(Segment::DelXor()) => panic!("'d' step not followed by a clause or 'x' step"),
+      Some(Segment::OrigXor()) => _panic(self, "'o' step not followed by a clause or 'x' step", None),
+      Some(Segment::AddXor()) => _panic(self, "'a' step not followed by a clause or 'x' step", None),
+      Some(Segment::DelXor()) => _panic(self, "'d' step not followed by a clause or 'x' step", None),
       Some(Segment::Imply(idx, vec)) => Some(Step::Imply(idx, vec, None)),
-      Some(Segment::ImplyXor()) => panic!("'i' step not followed by a clause or 'x' step"),
-      Some(Segment::FinalXor()) => panic!("'f' step not followed by a clause or 'x' step"),
+      Some(Segment::ImplyXor()) => _panic(self, "'i' step not followed by a clause or 'x' step", None),
+      Some(Segment::FinalXor()) => _panic(self, "'f' step not followed by a clause or 'x' step", None),
       Some(Segment::Unit(units)) => match self.0.next() {
         Some(Segment::LProof(steps)) => match self.0.next() {
           Some(Segment::Xor(idx, vec)) => match self.0.next() {
             Some(Segment::AddXor()) => Some(Step::AddXor(idx, vec, Some(Proof::LRAT(steps)), Some(Proof::Unit(units)))),
+            Some(Segment::DelXor()) => panic!("del-xor step {}: 'x' 'l' 'u' step not preceded by 'a' step", idx),
+            Some(Segment::FinalXor()) => panic!("final-xor step {}: 'x' 'l' 'u' step not preceded by 'a' step", idx),
             _ => panic!("xor step {}: 'x' 'l' 'u' step not preceded by 'a' step", idx),
           }
-          _ => panic!("'l' 'u' step not preceded by 'x' step"),
+          other => _panic(self, "'l' 'u' step not preceded by 'x' step", other),
         }
-        _ => panic!("'u' step not preceded by 'l' step"),
+        other => _panic(self, "'u' step not preceded by 'l' step", other),
       }
     }
   }
