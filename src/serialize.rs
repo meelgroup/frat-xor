@@ -118,8 +118,8 @@ impl<'a> Serialize<Bin> for StepRef<'a> {
       StepRef::Add(idx, vec, None) => (b'a', (idx, vec)).write(w),
       StepRef::Add(idx, vec, Some(ProofRef::LRAT(steps))) =>
         ((b'a', (idx, vec)), (b'l', steps)).write(w),
-      StepRef::Add(_, _, Some(ProofRef::Unit(_))) =>
-        panic!("unexpected 'u' step following 'a' step"),
+      StepRef::Add(idx, _, Some(ProofRef::Unit(_))) =>
+        panic!("add step {}: unexpected 'u' step following 'a' step", idx),
       StepRef::Reloc(relocs) => (b'r', relocs).write(w),
       StepRef::Del(idx, vec) => (b'd', (idx, vec)).write(w),
       StepRef::Final(idx, vec) => (b'f', (idx, vec)).write(w),
@@ -139,13 +139,13 @@ impl<'a> Serialize<Bin> for StepRef<'a> {
       StepRef::Imply(idx, vec, None) => (b'i', (idx, vec)).write(w),
       StepRef::Imply(idx, vec, Some(ProofRef::LRAT(steps))) =>
         ((b'i', (idx, vec)), (b'l', steps)).write(w),
-      StepRef::Imply(_, _, Some(ProofRef::Unit(_))) =>
-        panic!("unexpected 'u' step following 'i' step"),
+      StepRef::Imply(idx, _, Some(ProofRef::Unit(_))) =>
+        panic!("imply step {}: unexpected 'u' step following 'i' step", idx),
       StepRef::ImplyXor(idx, vec, None) => ((b'i', (0u8, b'x')), (idx, vec)).write(w),
       StepRef::ImplyXor(idx, vec, Some(ProofRef::LRAT(steps))) =>
         (((b'i', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
-      StepRef::ImplyXor(_, _, Some(ProofRef::Unit(_))) =>
-        panic!("unexpected 'u' step following 'i' 'x' step"),
+      StepRef::ImplyXor(idx, _, Some(ProofRef::Unit(_))) =>
+        panic!("imply-xor step {}: unexpected 'u' step following 'i' 'x' step", idx),
       StepRef::FinalXor(idx, vec) => ((b'f', (0u8, b'x')), (idx, vec)).write(w),
     }
   }
@@ -241,8 +241,8 @@ impl<'a> Serialize<Bin> for ElabStepRef<'a> {
         (((b'a', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
       ElabStepRef::AddXor(idx, vec, steps, Some(ProofRef::Unit(units))) =>
         (((b'a', (0u8, b'x')), (idx, vec)), ((b'l', steps), (b'u', units))).write(w),
-      ElabStepRef::AddXor(_, _, _, Some(ProofRef::LRAT(_))) =>
-        panic!("duplicated 'l' step following 'a' 'x' 'l' step"),
+      ElabStepRef::AddXor(idx, _, _, Some(ProofRef::LRAT(_))) =>
+        panic!("add-xor step {}: duplicated 'l' step following 'a' 'x' 'l' step", idx),
       ElabStepRef::DelXor(idx) => ((b'd', (0u8, b'x')), (idx, 0u8)).write(w),
       ElabStepRef::Imply(idx, vec, steps) =>
         ((b'i', (idx, vec)), (b'l', steps)).write(w),

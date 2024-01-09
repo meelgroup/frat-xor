@@ -999,7 +999,7 @@ fn elab<M: Mode>(
       Step::Final(i, mut ls) => {
         ctx.step = i;
         if let Some(j) = last_non_finalize {
-          panic!("step {}: \
+          panic!("final step {}: \
             'f' steps should only appear at the end of the proof (step {} appears later).", i, j);
         }
         // Identical to the Del case, except that the clause should be marked if empty
@@ -1035,7 +1035,7 @@ fn elab<M: Mode>(
 
           ElabStep::AddXor(i, ls, is, u).write(w)?
         } else {
-          panic!("add XOR step has no proof");
+          panic!("add-xor step {}: add XOR step has no proof", i);
         }
       }
 
@@ -1051,7 +1051,7 @@ fn elab<M: Mode>(
         if let Some(Proof::LRAT(is)) = p {
           ElabStep::Imply(i, ls, is).write(w)?
         } else {
-          panic!("imply step has no proof");
+          panic!("imply step {}: imply step has no proof", i);
         }
       }
 
@@ -1075,13 +1075,13 @@ fn elab<M: Mode>(
 
           ElabStep::ImplyXor(i, ls, is).write(w)?
         } else {
-          panic!("imply XOR step has no proof");
+          panic!("imply-xor step {}: imply XOR step has no proof", i);
         }
       } 
 
       Step::FinalXor(i, _ls) => {
         if let Some(j) = last_non_finalize {
-          panic!("xor step {}: \
+          panic!("final-xor step {}: \
             'f x' steps should only appear at the end of the proof (step {} appears later).", i, j);
         }
       }
@@ -1172,8 +1172,8 @@ fn trim(
     match s {
       ElabStep::Comment(s) => if comments { writeln!(lrat, "{} c {}", k, s)? }
 
-      ElabStep::Orig(_, _) =>
-        panic!("Orig steps must come at the beginning of the temp file"),
+      ElabStep::Orig(i, _) =>
+        panic!("orig step {}: Orig steps must come at the beginning of the temp file", i),
 
       ElabStep::Add(i, AddStep(ls), mut is) => {
         if let Some(cl) = match *is {
@@ -1182,7 +1182,7 @@ fn trim(
         } {
           // A one-hint RUP step is a subsumed clause, so we can skip it
           let cl = *map.get(&cl).unwrap_or_else(||
-            panic!("step {}: proof step {:?} not found", i, cl));
+            panic!("add step {}: proof step {:?} not found", i, cl));
           map.insert(i, cl);
           // eprintln!("{} -> {} copy", i, cl);
           *copies.entry(cl).or_default() += 1;
@@ -1196,10 +1196,11 @@ fn trim(
           for &x in &*ls { write!(lrat, " {}", x)? }
           write!(lrat, " 0")?;
           let mut last_neg = None;
+          let idx = i;
           for (i, x) in is.iter_mut().enumerate() {
             let ux = x.unsigned_abs();
             let lit = *map.get(&ux).unwrap_or_else(||
-              panic!("step {}: proof step {:?} not found", i, ux)) as i64;
+              panic!("add step {}: proof step {:?} not found", idx, ux)) as i64;
             *x = if *x < 0 {
               if let Some((lit, j)) = last_neg { rats.push((lit, j, i)) }
               last_neg = Some((lit, i));
@@ -1260,8 +1261,8 @@ fn trim(
         Ok(())
       })?,
 
-      ElabStep::OrigXor(_, _) =>
-        panic!("Orig XOR steps must come at the beginning of the temp file"),
+      ElabStep::OrigXor(i, _) =>
+        panic!("orig-xor step {}: Orig XOR steps must come at the beginning of the temp file", i),
 
       ElabStep::AddXor(i, ls, is, u) => {
         write!(lrat, "x {}", i)?;

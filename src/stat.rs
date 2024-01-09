@@ -31,7 +31,7 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
             // eprintln!("original clause {} {:?} never finalized", i, lits);
           },
           Some((_, lits2)) => if !subsumes(&lits2, &lits) {
-            eprintln!("added {:?}, removed {:?}", lits, lits2);
+            eprintln!("orig step {}: added {:?}, removed {:?}", i, lits, lits2);
             bad = true;
           }
         }
@@ -46,7 +46,7 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
         if let Some((need, lits2)) = active.remove(&i) {
           let lits = step.parse().lemma();
           if !subsumes(&lits2, lits) {
-            eprintln!("added {:?}, removed {:?}", lits, lits2);
+            eprintln!("add step {}: added {:?}, removed {:?}", i, lits, lits2);
             bad = true;
           }
           if need {
@@ -116,7 +116,7 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
         _imply += 1;
         if let Some((_need, lits2)) = active.remove(&i) {
           if !subsumes(&lits2, &lits) {
-            eprintln!("added {:?}, removed {:?}", lits, lits2);
+            eprintln!("imply step {}: added {:?}, removed {:?}", i, lits, lits2);
             bad = true;
           }
         } else {
