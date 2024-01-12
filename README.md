@@ -18,6 +18,16 @@ cargo clean
 cargo build --features=ascii --release
 ```
 
+This builds the toolchain with static links to everything, including glibc.
+
+```
+cargo clean
+rustup target add x86_64-unknown-linux-musl
+cargo build --release --target=x86_64-unknown-linux-musl
+```
+
+You can find the compiled tool at `./target/x86_64-unknown-linux-musl/release/frat-rs`.
+
 ## Usage
 
 FRAT-rs can be compiled using `make`. (It is written in Rust, so you will need to
