@@ -1,5 +1,5 @@
 [package]
-name = "frat-rs"
+name = "frat-xor"
 version = "0.1.0"
 authors = ["Mario Carneiro <di.gama@gmail.com>"]
 edition = "2018"
