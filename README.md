@@ -1,6 +1,9 @@
 # FRAT-XOR
 
-The frat-xor is a toolchain for translating CNF-XOR proof from FRAT-XOR to XLRUP format. The format description is [here](https://github.com/meelgroup/frat-xor/blob/main/format.md).
+This repository contains the `frat-xor` tool for elaborating unsatisfiability proofs for CNF-XOR formulas from FRAT-XOR to XLRUP format. The latter format is supported by a formally verified proof checker `cake_xlrup`, whose verified binary implementation can be found in its own [directory](cake_xlrup/).
+The format description is [here](format.md).
+
+This repository was created as a fork of `FRAT-rs` which is available [here](https://github.com/digama0/frat).
 
 ## Build
 
@@ -34,4 +37,10 @@ You can find an example below.
 
 ```
 frat-xor elab ./example/test_1.xfrat ./example/test_1.xnf ./example/test_1.xlrup
+```
+
+The elaborated proof can be checked with `cake_xlrup`.
+
+```
+cake_xlrup ./example/test_1.xnf ./example/test_1.xlrup
 ```

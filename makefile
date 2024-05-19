@@ -2,7 +2,7 @@
 
 frat: ./src/*.rs
 	cargo build --release
-	mv ./target/release/frat-rs .
+	mv ./target/release/frat-xor .
 
 clean:
-	rm frat-rs
+	rm frat-xor
