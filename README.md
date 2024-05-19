@@ -5,6 +5,9 @@ The format description is [here](format.md).
 
 This repository was created as a fork of `FRAT-rs` which is available [here](https://github.com/digama0/frat).
 
+Proofs in FRAT-XOR format are genreated by the `CryptoMiniSat` SAT solver which is available [here](https://github.com/msoos/cryptominisat).
+
+
 ## Build
 
 You must have the `rust` toolchain, including `cargo`, installed. Then you can build with:
