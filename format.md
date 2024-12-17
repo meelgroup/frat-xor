@@ -1,22 +1,22 @@
 # CNF-XOR-BNN proof format
 
-This file gives a provisional spec for a CNF-XOR proof format based on an extension of FRAT for RUP and XOR reasoning.
+This file gives a provisional spec for a CNF-XOR-BNN proof format based on an extension of FRAT for RUP, XOR, and BNN reasoning.
 
 ## Overview
 
-The FRAT-XOR proof format supports FRAT-style proofs extended with XOR reasoning; this format is designed to be easily emitted by CNF-XOR solvers.
+The FRAT-XOR-BNN proof format supports FRAT-style proofs extended with XOR reasoning; this format is designed to be easily emitted by CNF-XOR-BNN solvers.
 
 Correspondingly, XLRUP is an elaborated proof format supported by the `cake_xlrup` verified proof checker.
 
-Conversion from FRAT-XOR to XLRUP is supported by the `frat-xor` tool.
+Conversion from FRAT-XOR-BNN to XLRUP is supported by the `frat-xor` tool.
 
 Our extensions follow a suggestion from the FRAT paper: "... it could pass the new methods on to some XLRAT backend format that understands these steps natively".
 
 In particular, the XOR reasoning steps are *only* checked by `cake_xlrup`, but are mostly passed through unchanged by the elaborator (except for doing some bookkeeping).
 
-## Input CNF-XOR File Format
+## Input CNF-XOR-BNN File Format
 
-The input CNF-XOR file format is an extension of CNF DIMACS as supported by the CryptoMiniSat solver.
+The input CNF-XOR-BNN file format is an extension of CNF DIMACS as supported by the CryptoMiniSat solver.
 
 ### Comments
 
@@ -32,16 +32,16 @@ c this is a comment
 The file (after stripping comments) must start with a header line:
 
 ```
-p cnf #num_vars #num_clauses_and_xors
+p cnf #num_vars #num_clauses_and_xors_and_bnns
 ```
 
 `#num_vars` is the maximum variable in use (variables are numbered `1,2,...,num_vars`).
 
-`#num_clauses_and_xors` is total number of CNF clauses and XOR constraints (henceforth, XORs).
+`#num_clauses_and_xors_and_bnns` is the total number of CNF clauses, XOR constraints, and BNN constraints (henceforth, XORs and BNNs).
 
 Subsequent lines must be in one of two formats.
 
-### Clauses and XORs
+### Clauses, XORs, and BNNs
 
 Syntactically, clauses and XORs are both represented by lists of non-zero integers,
 
@@ -61,7 +61,7 @@ To list a clause in the input file, write a line with a clause followed by a zer
 CLAUSE_LINE ::= CLAUSE 0
 ```
 
-For example the line `1 -2 3 0` represents the clause `x_1 OR NOT(x_2) OR x_3`.
+For example, the line `1 -2 3 0` represents the clause `x_1 OR NOT(x_2) OR x_3`.
 
 To indicate an XOR in the input file, start the line with `x` followed by the constraint and end it with zero:
 
@@ -69,28 +69,28 @@ To indicate an XOR in the input file, start the line with `x` followed by the co
 XOR_LINE ::= x { list of non-zero integers } 0
 ```
 
-For example the line `x 1 -2 3 0` represents the XOR `x_1 XOR NOT(x_2) XOR x_3 = 1`.
+For example, the line `x 1 -2 3 0` represents the XOR `x_1 XOR NOT(x_2) XOR x_3 = 1`.
 
-To represent a BNN constraint in the input file, start the line with `b` followed by the constraint and end it with zero:
+To represent a BNN in the input file, start the line with `b` followed by the constraint and end it with zero:
 
 ```
 BNN_LINE ::= b { list of non-zero integers } 0 cutoff output_lit 0
 ```
 
-For example the line `b 1 2 3 0 3 4` represents the BNN constraint `x_1 + x_2 + x_3 >= 3 <-> output_lit`.
+For example, the line `b 1 2 3 0 3 4` represents the BNN constraint `x_1 + x_2 + x_3 >= 3 <-> output_lit`.
 
 ## Proof Format
 
-Throughout the following, the proof formats are allowed to explicitly refer to positive integer clause or XOR IDs.
+Throughout the following, the proof formats are allowed to explicitly refer to positive integer clause, XOR, or BNN IDs.
 
-It will be clear from the context what kind of ID is being used, but for clarity, we indicate either `CID` (for clauses) or `XID` (for XORs).
+It will be clear from the context what kind of ID is being used, but for clarity, we indicate either `CID` (for clauses), `XID` (for XORs), or `BID` (for BNNs).
 
 ```
-ID, CID, XID    ::= ( single positive integer )
-IDs, CIDs, XIDs ::= { list of respective IDs }
+ID, CID, XID, BID    ::= ( single positive integer )
+IDs, CIDs, XIDs, BIDs ::= { list of respective IDs }
 ```
 
-### FRAT-XOR Format
+### FRAT-XOR-BNN Format
 
 The supported clausal steps are identical to FRAT although RAT and PR steps are not supported.
 
@@ -131,6 +131,33 @@ XOR_FROM_CLAUSE_STEP ::= i x XID XOR 0 l CIDs 0
 ```
 XOR_FINAL_STEP ::= f x XID XOR 0
 ```
+
+Additional BNN reasoning is supported as follows: 
+
+- Indicate an original BNN and give it the `BID` identifier.
+
+```
+BNN_ORIG_STEP ::= o b BID BNN 0
+```
+
+- Delete an BNN at the given ID.
+
+```
+BNN_DEL_STEP ::= d b BID BNN 0
+```
+
+- Add a new clause implied by the indicated BNN.
+
+```
+CLAUSE_FROM_BNN_STEP ::= i CID CLAUSE 0 b BID 0
+```
+
+- Indicate a final BNN.
+
+```
+BNN_FINAL_STEP ::= f b BID BNN 0
+```
+
 
 ### XLRUP Format
 
@@ -174,6 +201,26 @@ CLAUSE_FROM_XOR_STEP ::= i CID CLAUSE 0 XIDs 0
 
 ```
 XOR_FROM_CLAUSE_STEP ::= i x XID XOR 0 CIDs 0
+```
+
+BNN reasoning behaves like a simpler version of XOR reasoning.
+
+- Indicate an original BNN and give it the `BID` identifier.
+
+```
+BNN_ORIG_STEP ::= o b BID BNN 0
+```
+
+- BNN deletion
+
+```
+BNN_DEL_STEP ::= b d BIDs
+```
+
+- Clauses can be derived from BNN (`i` stands for "implies")
+
+```
+CLAUSE_FROM_BNN_STEP ::= i CID CLAUSE 0 BID 0
 ```
 
 ### Experimental
