@@ -79,6 +79,8 @@ BNN_LINE ::= b { list of non-zero integers } 0 cutoff output_lit 0
 
 For example, the line `b 1 2 3 0 3 4` represents the BNN constraint `x_1 + x_2 + x_3 >= 3 <-> output_lit`.
 
+Ideally, we want to use `b 1 2 3 0 3` to represent a cardinality constraint `x_1 + x_2 + x_3 >= 3` as well, i.e., a BNN constraint when the output_lit is True. However, the current CMS does not handle the case properly when the output_lit is missing in the input BNN. We will resolve this issue and add the cardinality extension to the format.
+
 ## Proof Format
 
 Throughout the following, the proof formats are allowed to explicitly refer to positive integer clause, XOR, or BNN IDs.
