@@ -1,4 +1,4 @@
-# CNF-XOR proof format
+# CNF-XOR-BNN proof format
 
 This file gives a provisional spec for a CNF-XOR proof format based on an extension of FRAT for RUP and XOR reasoning.
 
@@ -43,10 +43,16 @@ Subsequent lines must be in one of two formats.
 
 ### Clauses and XORs
 
-Syntactically, clauses and XORs are both represented by lists of non-zero integers.
+Syntactically, clauses and XORs are both represented by lists of non-zero integers,
 
 ```
 CLAUSE, XOR ::= { list of non-zero integers }
+```
+
+while a BNN constraint is represented by a list of non-zero integers followed by zero and two non-zero integers.
+
+```
+BNN ::= { list of non-zero integers } 0 cutoff output_lit
 ```
 
 To list a clause in the input file, write a line with a clause followed by a zero:
@@ -64,6 +70,14 @@ XOR_LINE ::= x { list of non-zero integers } 0
 ```
 
 For example the line `x 1 -2 3 0` represents the XOR `x_1 XOR NOT(x_2) XOR x_3 = 1`.
+
+To represent a BNN constraint in the input file, start the line with `b` followed by the constraint and end it with zero:
+
+```
+BNN_LINE ::= b { list of non-zero integers } 0 cutoff output_lit 0
+```
+
+For example the line `b 1 2 3 0 3 4` represents the BNN constraint `x_1 + x_2 + x_3 >= 3 <-> output_lit`.
 
 ## Proof Format
 
