@@ -211,7 +211,7 @@ XOR_ADD_STEP ::= x XID XOR 0 XIDs 0
 - XOR deletion
 
 ```
-XOR_DEL_STEP ::= x d XIDs
+XOR_DEL_STEP ::= x d XIDs 0
 ```
 
 - Clauses can be derived from XORs (`i` stands for "implies"; `cx` means clause-from-XOR)
@@ -231,7 +231,7 @@ BNN reasoning behaves like a simpler version of XOR reasoning.
 - BNN deletion
 
 ```
-BNN_DEL_STEP ::= b d BIDs
+BNN_DEL_STEP ::= b d BIDs 0
 ```
 
 - Clauses can be derived from BNN and unit clauses (`i` stands for "implies"; `cb` means clause-from-BNN)
