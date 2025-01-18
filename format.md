@@ -161,6 +161,11 @@ XOR_FINAL_STEP ::= f x XID XOR 0
 
 Additional BNN reasoning is supported as follows: 
 
+- Indicate an original BNN and give it the `BID` identifier.
+```
+BNN_ORIG_STEP ::= o b BID BNN 0
+```
+
 - Delete an BNN at the given ID.
 
 ```
