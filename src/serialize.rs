@@ -148,6 +148,7 @@ impl<'a> Serialize<Bin> for StepRef<'a> {
         panic!("imply-xor step {}: unexpected 'u' step following 'i' 'x' step", idx),
       StepRef::FinalXor(idx, vec) => ((b'f', (0u8, b'x')), (idx, vec)).write(w),
       StepRef::OrigBnn(idx, vec, rhs, out) => ((b'o', (0u8, b'b')), ((idx, vec), (((b'k', rhs), out), 0u8))).write(w),
+      StepRef::DelBnn(idx, vec, rhs, out) => ((b'd', (0u8, b'b')), ((idx, vec), (((b'k', rhs), out), 0u8))).write(w),
       StepRef::BnnImply(idx, vec, pf, uf) => {
         (b'i', (idx, vec)).write(w)?;
         if let Some(ProofRef::LRAT(steps)) = pf {
@@ -230,6 +231,9 @@ impl<'a> Serialize<Ascii> for StepRef<'a> {
       StepRef::OrigBnn(idx, vec, rhs, out) => {
         write!(w, "o b {}  ", idx)?; vec.write(w)?; write!(w, " k {} {} 0", rhs, out)?; writeln!(w)
       }
+      StepRef::DelBnn(idx, vec, rhs, out) => {
+        write!(w, "d b {}  ", idx)?; vec.write(w)?; write!(w, " k {} {} 0", rhs, out)?; writeln!(w)
+      }
       StepRef::BnnImply(idx, vec, pf, uf) => {
         write!(w, "i {}  ", idx)?; vec.write(w)?;
         if let Some(ProofRef::LRAT(steps)) = pf {
@@ -273,6 +277,7 @@ impl<'a> Serialize<Bin> for ElabStepRef<'a> {
       ElabStepRef::ImplyXor(idx, vec, steps) =>
         (((b'i', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
       ElabStepRef::OrigBnn(idx, vec, rhs, out) => ((b'o', (0u8, b'b')), ((idx, vec), (((b'k', rhs), out), 0u8))).write(w), 
+      ElabStepRef::DelBnn(idx) => ((b'd', (0u8, b'b')), (idx, 0u8)).write(w),
       ElabStepRef::BnnImply(idx, vec, steps, None) =>
         ((b'i', (idx, vec)), ((b'b', (0u8, b'l')), steps)).write(w),
       ElabStepRef::BnnImply(idx, vec, steps, Some(ProofRef::Unit(units))) =>
@@ -301,6 +306,7 @@ impl<'a> Serialize<Ascii> for ElabStepRef<'a> {
       ElabStepRef::ImplyXor(idx, vec, steps) => 
         StepRef::ImplyXor(idx, vec, Some(ProofRef::LRAT(steps))).write(w),
       ElabStepRef::OrigBnn(idx, vec, rhs, out) => StepRef::OrigBnn(idx, vec, rhs, out).write(w),
+      ElabStepRef::DelBnn(idx) => writeln!(w, "d b {}", idx),
       ElabStepRef::BnnImply(idx, vec, steps, uf) =>
         StepRef::BnnImply(idx, vec, Some(ProofRef::LRAT(steps)), uf).write(w),
     }

@@ -1091,6 +1091,10 @@ fn elab<M: Mode>(
         orig_bnns.push((i, ls.clone(), rhs, out));
       }
 
+      Step::DelBnn(i, _ls, _rhs, _out) => {
+        ElabStep::DelBnn(i).write(w)?
+      }
+
       Step::BnnImply(i, ls, p, u) => {
         ctx.step = i;
         let c = ctx.remove(i);
@@ -1358,6 +1362,8 @@ fn trim(
       ElabStep::OrigBnn(i, _, _, _) =>
         panic!("orig-bnn step {}: Orig BNN steps must come at the beginning of the temp file", i),
 
+      ElabStep::DelBnn(i) => writeln!(lrat, "b d {} 0", i)?,
+
       ElabStep::BnnImply(i, ls, is, u) => {
         k += 1;
         map.insert(i, k);
@@ -1606,6 +1612,11 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
       ElabStep::OrigBnn(i, ls, rhs, out) => {
         StepRef::OrigBnn(i, &ls, rhs, out).write(w)?;
         ctx_bnn.insert(i, (ls, rhs, out));
+      }
+
+      ElabStep::DelBnn(i) => {
+        let (ls, rhs, out) = ctx_bnn.remove(&i).unwrap();
+        Step::DelBnn(i, ls, rhs, out).write(w)?;
       }
 
       ElabStep::BnnImply(i, ls, is, u) => {
