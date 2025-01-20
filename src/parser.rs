@@ -63,9 +63,9 @@ pub trait Mode: Default {
       }
       Some(b'l') => Segment::LProof(self.ivec(it)),
       Some(b'o') => match self.unum(it) {
-        Some(0) => Segment::OrigXor(),
+        Some(0) => Segment::OrigHead(),
         Some(idx) => Segment::Orig(idx, self.ivec(it)),
-        None => Segment::OrigXor(),
+        None => Segment::OrigHead(),
       }
       Some(b'r') => Segment::Reloc(self.uvec2(it)),
       Some(b't') => {
@@ -80,6 +80,20 @@ pub trait Mode: Default {
         None => Segment::ImplyXor(),
       }
       Some(b'u') => Segment::Unit(self.uvec(it)),
+      Some(b'b') => {
+        let idx = self.unum(it);
+        match idx {
+          Some(0) => Segment::BnnImply(),
+          Some(idx) => {
+            let vec = self.ivec(it);
+            let rhs = self.num(it).unwrap();
+            let out = self.num(it).unwrap();
+            assert!(self.num(it).unwrap() == 0, "parse error at char {} for bnn, invalid bnn format.", ch());
+            Segment::Bnn(idx, vec, rhs, out)
+          }
+          None => Segment::BnnImply()
+        }
+      }
       Some(k) => panic!("parse error at char {}: bad step {:?}", ch(), k as char),
       None => panic!("parse error at char {}: bad step None", ch()),
     }
@@ -109,13 +123,15 @@ pub enum Segment {
   Final(u64, Vec<i64>),
   Todo(u64),
   Xor(u64, Vec<i64>),
-  OrigXor(),
+  OrigHead(),
   AddXor(),
   DelXor(),
   Imply(u64, Vec<i64>),
   ImplyXor(),
   FinalXor(),
   Unit(Vec<u64>),
+  Bnn(u64, Vec<i64>, i64, i64),
+  BnnImply(),
 }
 
 #[derive(Default)] pub struct Bin;
@@ -483,6 +499,8 @@ pub enum Step {
   Imply(u64, Vec<i64>, Option<Proof>),
   ImplyXor(u64, Vec<i64>, Option<Proof>),
   FinalXor(u64, Vec<i64>),
+  OrigBnn(u64, Vec<i64>, i64, i64),
+  BnnImply(u64, Vec<i64>, Option<Proof>, Option<Proof>),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -500,6 +518,8 @@ pub enum StepRef<'a> {
   Imply(u64, &'a [i64], Option<ProofRef<'a>>),
   ImplyXor(u64, &'a [i64], Option<ProofRef<'a>>),
   FinalXor(u64, &'a [i64]),
+  OrigBnn(u64, &'a [i64], i64, i64),
+  BnnImply(u64, &'a [i64], Option<ProofRef<'a>>, Option<ProofRef<'a>>),
 }
 
 impl Step {
@@ -518,6 +538,8 @@ impl Step {
       Step::Imply(i, ref v, ref p) => StepRef::Imply(i, v, p.as_ref().map(Proof::as_ref)),
       Step::ImplyXor(i, ref v, ref p) => StepRef::ImplyXor(i, v, p.as_ref().map(Proof::as_ref)),
       Step::FinalXor(i, ref v) => StepRef::FinalXor(i, v),
+      Step::OrigBnn(i, ref v, r, o) => StepRef::OrigBnn(i, v, r, o),
+      Step::BnnImply(i, ref v, ref p, ref u) => StepRef::BnnImply(i, v, p.as_ref().map(Proof::as_ref), u.as_ref().map(Proof::as_ref)),
     }
   }
 }
@@ -535,6 +557,9 @@ impl<'a> StepRef<'a> {
   #[inline] pub fn imply_xor(idx: u64, ls: &'a [i64], proof: Option<&'a [i64]>) -> Self {
     Self::ImplyXor(idx, ls, proof.map(ProofRef::LRAT))
   }
+  #[inline] pub fn bnn_imply(idx: u64, ls: &'a [i64], proof: Option<&'a [i64]>, u: Option<&'a Proof>) -> Self {
+    Self::BnnImply(idx, ls, proof.map(ProofRef::LRAT), u.map(Proof::as_ref))
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -549,6 +574,8 @@ pub enum ElabStep {
   DelXor(u64),
   Imply(u64, Vec<i64>, Vec<i64>),
   ImplyXor(u64, Vec<i64>, Vec<i64>),
+  OrigBnn(u64, Vec<i64>, i64, i64),
+  BnnImply(u64, Vec<i64>, Vec<i64>, Option<Proof>),
 }
 
 #[derive(Debug, Clone)]
@@ -563,6 +590,8 @@ pub enum ElabStepRef<'a> {
   DelXor(u64),
   Imply(u64, &'a [i64], &'a [i64]),
   ImplyXor(u64, &'a [i64], &'a [i64]),
+  OrigBnn(u64, &'a [i64], i64, i64),
+  BnnImply(u64, &'a [i64], &'a [i64], Option<ProofRef<'a>>),
 }
 
 impl ElabStep {
@@ -578,6 +607,8 @@ impl ElabStep {
       ElabStep::DelXor(i) => ElabStepRef::DelXor(i),
       ElabStep::Imply(i, ref v, ref p) => ElabStepRef::Imply(i, v, p),
       ElabStep::ImplyXor(i, ref v, ref p) => ElabStepRef::ImplyXor(i, v, p),
+      ElabStep::OrigBnn(i, ref v, r, o) => ElabStepRef::OrigBnn(i, v, r, o),
+      ElabStep::BnnImply(i, ref v, ref p, ref u) => ElabStepRef::BnnImply(i, v, p, u.as_ref().map(Proof::as_ref)),
     }
   }
 }

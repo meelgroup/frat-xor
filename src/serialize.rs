@@ -147,6 +147,17 @@ impl<'a> Serialize<Bin> for StepRef<'a> {
       StepRef::ImplyXor(idx, _, Some(ProofRef::Unit(_))) =>
         panic!("imply-xor step {}: unexpected 'u' step following 'i' 'x' step", idx),
       StepRef::FinalXor(idx, vec) => ((b'f', (0u8, b'x')), (idx, vec)).write(w),
+      StepRef::OrigBnn(idx, vec, rhs, out) => ((b'o', (0u8, b'b')), ((idx, vec), ((rhs, out), 0u8))).write(w),
+      StepRef::BnnImply(idx, vec, pf, uf) => {
+        (b'i', (idx, vec)).write(w)?;
+        if let Some(ProofRef::LRAT(steps)) = pf {
+          ((b'b', (0u8, b'l')), steps).write(w)?;
+          if let Some(ProofRef::Unit(units)) = uf {
+            (b'u', units).write(w)?;
+          }
+        }
+        write!(w, "")
+      },
     }
   }
 }
@@ -216,6 +227,19 @@ impl<'a> Serialize<Ascii> for StepRef<'a> {
       StepRef::FinalXor(idx, vec) => {
         write!(w, "f x {}  ", idx)?; vec.write(w)?; writeln!(w)
       }
+      StepRef::OrigBnn(idx, vec, rhs, out) => {
+        write!(w, "o b {}  ", idx)?; vec.write(w)?; write!(w, " {} {} 0", rhs, out)?; writeln!(w)
+      }
+      StepRef::BnnImply(idx, vec, pf, uf) => {
+        write!(w, "i {}  ", idx)?; vec.write(w)?;
+        if let Some(ProofRef::LRAT(steps)) = pf {
+          write!(w, "  b l ")?; steps.write(w)?;
+          if let Some(ProofRef::Unit(units)) = uf {
+            write!(w, " u ")?; units.write(w)?;
+          }
+        }
+        writeln!(w)
+      }
     }
   }
 }
@@ -248,6 +272,13 @@ impl<'a> Serialize<Bin> for ElabStepRef<'a> {
         ((b'i', (idx, vec)), (b'l', steps)).write(w),
       ElabStepRef::ImplyXor(idx, vec, steps) =>
         (((b'i', (0u8, b'x')), (idx, vec)), (b'l', steps)).write(w),
+      ElabStepRef::OrigBnn(idx, vec, rhs, out) => ((b'o', (0u8, b'b')), ((idx, vec), ((rhs, out), 0u8))).write(w), 
+      ElabStepRef::BnnImply(idx, vec, steps, None) =>
+        ((b'i', (idx, vec)), ((b'b', (0u8, b'l')), steps)).write(w),
+      ElabStepRef::BnnImply(idx, vec, steps, Some(ProofRef::Unit(units))) =>
+        ((b'i', (idx, vec)), (((b'b', (0u8, b'l')), steps), (b'u', units))).write(w),
+      ElabStepRef::BnnImply(idx, _, _, Some(ProofRef::LRAT(_))) =>
+        panic!("bnn-imply step {}: duplicated 'l' step following 'i' 'b' 'l' step", idx),
     }
   }
 }
@@ -269,6 +300,9 @@ impl<'a> Serialize<Ascii> for ElabStepRef<'a> {
         StepRef::Imply(idx, vec, Some(ProofRef::LRAT(steps))).write(w),
       ElabStepRef::ImplyXor(idx, vec, steps) => 
         StepRef::ImplyXor(idx, vec, Some(ProofRef::LRAT(steps))).write(w),
+      ElabStepRef::OrigBnn(idx, vec, rhs, out) => StepRef::OrigBnn(idx, vec, rhs, out).write(w),
+      ElabStepRef::BnnImply(idx, vec, steps, uf) =>
+        StepRef::BnnImply(idx, vec, Some(ProofRef::LRAT(steps)), uf).write(w),
     }
   }
 }
