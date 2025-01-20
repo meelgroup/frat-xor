@@ -144,7 +144,7 @@ XOR_DEL_STEP ::= d x XID XOR 0
 - Add a new clause implied by adding the indicated XORs.
 
 ```
-CLAUSE_FROM_XOR_STEP ::= i cx CID CLAUSE 0 l XIDs 0
+CLAUSE_FROM_XOR_STEP ::= i CID CLAUSE 0 x l XIDs 0
 ```
 
 - Add a new XOR implied by the indicated clauses.
@@ -163,25 +163,25 @@ Additional BNN reasoning is supported as follows:
 
 - Indicate an original BNN and give it the `BID` identifier.
 ```
-BNN_ORIG_STEP ::= o b BID BNN 0
+BNN_ORIG_STEP ::= o b BID lits 0 k cutoff output_lit 0
 ```
 
 - Delete an BNN at the given ID.
 
 ```
-BNN_DEL_STEP ::= d b BID BNN 0
+BNN_DEL_STEP ::= d b BID lits 0 k cutoff output_lit 0
 ```
 
 - Add a new clause implied by the indicated BNN constraint at BID with unit propagations from CIDs.
 
 ```
-CLAUSE_FROM_BNN_STEP ::= i cb CID CLAUSE 0 l BID 0 u CIDs 0
+CLAUSE_FROM_BNN_STEP ::= i CID CLAUSE 0 b l BID 0 u CIDs 0
 ```
 
 - Indicate a final BNN (currently, these steps are not checked).
 
 ```
-BNN_FINAL_STEP ::= f b BID BNN 0
+BNN_FINAL_STEP ::= f b BID lits 0 k cutoff output_lit 0
 ```
 
 
