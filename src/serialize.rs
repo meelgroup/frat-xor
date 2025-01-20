@@ -159,6 +159,7 @@ impl<'a> Serialize<Bin> for StepRef<'a> {
         }
         write!(w, "")
       },
+      StepRef::FinalBnn(idx, vec, rhs, out) => ((b'f', (0u8, b'b')), ((idx, vec), (((b'k', rhs), out), 0u8))).write(w),
     }
   }
 }
@@ -243,6 +244,9 @@ impl<'a> Serialize<Ascii> for StepRef<'a> {
           }
         }
         writeln!(w)
+      }
+      StepRef::FinalBnn(idx, vec, rhs, out) => {
+        write!(w, "f b {}  ", idx)?; vec.write(w)?; write!(w, " k {} {} 0", rhs, out)?; writeln!(w)
       }
     }
   }

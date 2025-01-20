@@ -123,11 +123,12 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
           Some(Segment::Final(idx, _)) => panic!("final step {}: {}", idx, msg),
           Some(Segment::Xor(idx, _)) => match self_ref.0.next() {
             Some(Segment::DelHead()) => panic!("del-xor step {}: {}", idx, msg),
-            Some(Segment::FinalXor()) => panic!("final-xor step {}: {}", idx, msg),
+            Some(Segment::FinalHead()) => panic!("final-xor step {}: {}", idx, msg),
             _ => panic!("xor step {}: {}", idx, msg),
           }
           Some(Segment::BnnLhs(idx, _)) => match self_ref.0.next() {
             Some(Segment::DelHead()) => panic!("del-bnn step {}: {}", idx, msg),
+            Some(Segment::FinalHead()) => panic!("final-bnn step {}: {}", idx, msg),
             _ => panic!("bnn step {}: {}", idx, msg),
           }
           Some(Segment::Imply(idx, _)) => panic!("imply step {}: {}", idx, msg),
@@ -154,7 +155,7 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
           Some(Segment::ImplyXor()) =>
             Some(Step::ImplyXor(idx, vec, Some(Proof::LRAT(steps)))),
           Some(Segment::DelHead()) => panic!("del-xor step {}: 'x' 'l' step not preceded by 'a' or 'i' step", idx),
-          Some(Segment::FinalXor()) => panic!("final-xor step {}: 'x' 'l' step not preceded by 'a' or 'i' step", idx),
+          Some(Segment::FinalHead()) => panic!("final-xor step {}: 'x' 'l' step not preceded by 'a' or 'i' step", idx),
           _ => panic!("xor step {}: 'x' 'l' step not preceded by 'a' or 'i' step", idx)
         }
         Some(Segment::Imply(idx, vec)) =>
@@ -171,7 +172,7 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
         Some(Segment::AddXor()) => Some(Step::AddXor(idx, vec, None, None)),
         Some(Segment::DelHead()) => Some(Step::DelXor(idx, vec)),
         Some(Segment::ImplyXor()) => Some(Step::ImplyXor(idx, vec, None)),
-        Some(Segment::FinalXor()) => Some(Step::FinalXor(idx, vec)),
+        Some(Segment::FinalHead()) => Some(Step::FinalXor(idx, vec)),
         _ => panic!("xor step {}: 'x' step not preceded by 'o', 'a', 'd', 'i', or 'f' step", idx)
       }
       Some(Segment::OrigHead()) => _panic(self, "'o' step not followed by a clause, 'x' step, or 'b' step", None),
@@ -179,13 +180,13 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
       Some(Segment::DelHead()) => _panic(self, "'d' step not followed by a clause, 'x' step, or 'b' step", None),
       Some(Segment::Imply(idx, vec)) => Some(Step::Imply(idx, vec, None)),
       Some(Segment::ImplyXor()) => _panic(self, "'i' step not followed by a clause or 'x' step", None),
-      Some(Segment::FinalXor()) => _panic(self, "'f' step not followed by a clause or 'x' step", None),
+      Some(Segment::FinalHead()) => _panic(self, "'f' step not followed by a clause, 'x' step, or 'b' step", None),
       Some(Segment::Unit(units)) => match self.0.next() {
         Some(Segment::LProof(steps)) => match self.0.next() {
           Some(Segment::Xor(idx, vec)) => match self.0.next() {
             Some(Segment::AddXor()) => Some(Step::AddXor(idx, vec, Some(Proof::LRAT(steps)), Some(Proof::Unit(units)))),
             Some(Segment::DelHead()) => panic!("del-xor step {}: 'x' 'l' 'u' step not preceded by 'a' step", idx),
-            Some(Segment::FinalXor()) => panic!("final-xor step {}: 'x' 'l' 'u' step not preceded by 'a' step", idx),
+            Some(Segment::FinalHead()) => panic!("final-xor step {}: 'x' 'l' 'u' step not preceded by 'a' step", idx),
             _ => panic!("xor step {}: 'x' 'l' 'u' step not preceded by 'a' step", idx),
           }
           Some(Segment::BnnImply()) => match self.0.next() {
@@ -200,6 +201,7 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
         Some(Segment::BnnLhs(idx, vec)) => match self.0.next() {
           Some(Segment::OrigHead()) => Some(Step::OrigBnn(idx, vec, rhs, out)),
           Some(Segment::DelHead()) => Some(Step::DelBnn(idx, vec, rhs, out)),
+          Some(Segment::FinalHead()) => Some(Step::FinalBnn(idx, vec, rhs, out)),
           _ => panic!("bnn step {}: 'b' step not preceded by 'o', 'd', or 'f' step", idx)
         }
         other => _panic(self, "'k' step not preceded by 'b' step", other)
@@ -248,7 +250,7 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
         Some(Segment::DelHead()) =>
           {assert!(vec.is_empty()); Some(ElabStep::DelXor(idx))},
         Some(Segment::ImplyXor()) => panic!("imply-xor step {}: imply XOR step has no proof", idx),
-        Some(Segment::FinalXor()) => panic!("final-xor step {}: unexpected 'f x' segment", idx),
+        Some(Segment::FinalHead()) => panic!("final-xor step {}: unexpected 'f x' segment", idx),
         _ => panic!("xor step {}: 'x' step not preceded by 'o', 'a', 'd', 'i', or 'f' step", idx)
       }
       Some(Segment::OrigHead()) => panic!("'o' step not followed by a clause, 'x' step, or 'b' step"),
@@ -256,7 +258,7 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
       Some(Segment::DelHead()) => panic!("'d' step not followed by a clause, 'x' step, or 'b' step"),
       Some(Segment::Imply(idx, _)) => panic!("imply step {}: imply step has no proof", idx),
       Some(Segment::ImplyXor()) => panic!("'i' step not followed by a clause or 'x' step"),
-      Some(Segment::FinalXor()) => panic!("unexpected 'f' segment"),
+      Some(Segment::FinalHead()) => panic!("unexpected 'f' segment"),
       Some(Segment::Unit(units)) => match self.0.next() {
         Some(Segment::LProof(steps)) => match self.0.next() {
           Some(Segment::Xor(idx, vec)) => match self.0.next() {
@@ -275,6 +277,7 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
         Some(Segment::BnnLhs(idx, vec)) => match self.0.next() {
           Some(Segment::OrigHead()) => Some(ElabStep::OrigBnn(idx, vec, rhs, out)),
           Some(Segment::DelHead()) => panic!("del-bnn step {}: 'k' step should not exist for ElabStep", idx),
+          Some(Segment::FinalHead()) => panic!("final-bnn step {}: unexpected 'f b' segment", idx),
           _ => panic!("bnn step {}: 'b' step not preceded by 'o', 'd', or 'f' step", idx)
         }
         _ => panic!("'k' {} {} step not preceded by 'b' step", rhs, out)

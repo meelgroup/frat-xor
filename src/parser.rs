@@ -57,9 +57,9 @@ pub trait Mode: Default {
         None => Segment::DelHead(),
       }
       Some(b'f') => match self.unum(it) {
-        Some(0) => Segment::FinalXor(),
+        Some(0) => Segment::FinalHead(),
         Some(idx) => Segment::Final(idx, self.ivec(it)),
-        None => Segment::FinalXor(),
+        None => Segment::FinalHead(),
       }
       Some(b'l') => Segment::LProof(self.ivec(it)),
       Some(b'o') => match self.unum(it) {
@@ -128,7 +128,7 @@ pub enum Segment {
   DelHead(),
   Imply(u64, Vec<i64>),
   ImplyXor(),
-  FinalXor(),
+  FinalHead(),
   Unit(Vec<u64>),
   BnnLhs(u64, Vec<i64>),
   BnnRhs(i64, i64),
@@ -503,6 +503,7 @@ pub enum Step {
   OrigBnn(u64, Vec<i64>, i64, i64),
   BnnImply(u64, Vec<i64>, Option<Proof>, Option<Proof>),
   DelBnn(u64, Vec<i64>, i64, i64),
+  FinalBnn(u64, Vec<i64>, i64, i64),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -523,6 +524,7 @@ pub enum StepRef<'a> {
   OrigBnn(u64, &'a [i64], i64, i64),
   BnnImply(u64, &'a [i64], Option<ProofRef<'a>>, Option<ProofRef<'a>>),
   DelBnn(u64, &'a [i64], i64, i64),
+  FinalBnn(u64, &'a [i64], i64, i64),
 }
 
 impl Step {
@@ -544,6 +546,7 @@ impl Step {
       Step::OrigBnn(i, ref v, r, o) => StepRef::OrigBnn(i, v, r, o),
       Step::BnnImply(i, ref v, ref p, ref u) => StepRef::BnnImply(i, v, p.as_ref().map(Proof::as_ref), u.as_ref().map(Proof::as_ref)),
       Step::DelBnn(i, ref v, r, o) => StepRef::DelBnn(i, v, r, o),
+      Step::FinalBnn(i, ref v, r, o) => StepRef::FinalBnn(i, v, r, o),
     }
   }
 }

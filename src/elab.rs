@@ -1123,6 +1123,13 @@ fn elab<M: Mode>(
           panic!("bnn imply step {}: bnn imply step has no proof", i);
         }
       }
+
+      Step::FinalBnn(i, _ls, _rhs, _out) => {
+        if let Some(j) = last_non_finalize {
+          panic!("final-bnn step {}: \
+            'f b' steps should only appear at the end of the proof (step {} appears later).", i, j);
+        }
+      }
     }
   }
 
