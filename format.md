@@ -144,7 +144,7 @@ XOR_DEL_STEP ::= d x XID XOR 0
 - Add a new clause implied by adding the indicated XORs.
 
 ```
-CLAUSE_FROM_XOR_STEP ::= i CID CLAUSE 0 x l XIDs 0
+CLAUSE_FROM_XOR_STEP ::= i CID CLAUSE 0 l XIDs 0
 ```
 
 - Add a new XOR implied by the indicated clauses.
