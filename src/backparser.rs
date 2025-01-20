@@ -126,7 +126,7 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
             Some(Segment::FinalXor()) => panic!("final-xor step {}: {}", idx, msg),
             _ => panic!("xor step {}: {}", idx, msg),
           }
-          Some(Segment::Bnn(idx, _, _, _)) => match self_ref.0.next() {
+          Some(Segment::BnnLhs(idx, _)) => match self_ref.0.next() {
             _ => panic!("bnn step {}: {}", idx, msg),
           }
           Some(Segment::Imply(idx, _)) => panic!("imply step {}: {}", idx, msg),
@@ -173,10 +173,6 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
         Some(Segment::FinalXor()) => Some(Step::FinalXor(idx, vec)),
         _ => panic!("xor step {}: 'x' step not preceded by 'o', 'a', 'd', 'i', or 'f' step", idx)
       }
-      Some(Segment::Bnn(idx, vec, rhs, out)) => match self.0.next() {
-        Some(Segment::OrigHead()) => Some(Step::OrigBnn(idx, vec, rhs, out)),
-        _ => panic!("bnn step {}: 'b' step not preceded by 'o', 'd', or 'f' step", idx)
-      }
       Some(Segment::OrigHead()) => _panic(self, "'o' step not followed by a clause, 'x' step, or 'b' step", None),
       Some(Segment::AddXor()) => _panic(self, "'a' step not followed by a clause or 'x' step", None),
       Some(Segment::DelXor()) => _panic(self, "'d' step not followed by a clause or 'x' step", None),
@@ -199,6 +195,14 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
         }
         other => _panic(self, "'u' step not preceded by 'l' step", other),
       }
+      Some(Segment::BnnRhs(rhs, out)) => match self.0.next() {
+        Some(Segment::BnnLhs(idx, vec)) => match self.0.next() {
+          Some(Segment::OrigHead()) => Some(Step::OrigBnn(idx, vec, rhs, out)),
+          _ => panic!("bnn step {}: 'b' step not preceded by 'o', 'd', or 'f' step", idx)
+        }
+        other => _panic(self, "'k' step not preceded by 'b' step", other)
+      }
+      Some(Segment::BnnLhs(idx, _vec)) => panic!("bnn step {}: 'b' step not followed by 'k' step", idx),
       Some(Segment::BnnImply()) => _panic(self, "wrong format for 'b' step", None), 
     }
   }
@@ -265,10 +269,14 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
         }
         _ => panic!("'u' step not preceded by 'l' step"),
       }
-      Some(Segment::Bnn(idx, vec, rhs, out)) => match self.0.next() {
-        Some(Segment::OrigHead()) => Some(ElabStep::OrigBnn(idx, vec, rhs, out)),
-        _ => panic!("bnn step {}: 'b' step not preceded by 'o', 'd', or 'f' step", idx)
+      Some(Segment::BnnRhs(rhs, out)) => match self.0.next() {
+        Some(Segment::BnnLhs(idx, vec)) => match self.0.next() {
+          Some(Segment::OrigHead()) => Some(ElabStep::OrigBnn(idx, vec, rhs, out)),
+          _ => panic!("bnn step {}: 'b' step not preceded by 'o', 'd', or 'f' step", idx)
+        }
+        _ => panic!("'k' {} {} step not preceded by 'b' step", rhs, out)
       }
+      Some(Segment::BnnLhs(idx, _vec)) => panic!("bnn step {}: 'b' step not followed by 'k' step", idx),
       Some(Segment::BnnImply()) => panic!("wrong format for 'b' step"), 
     }
   }

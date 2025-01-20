@@ -84,15 +84,15 @@ pub trait Mode: Default {
         let idx = self.unum(it);
         match idx {
           Some(0) => Segment::BnnImply(),
-          Some(idx) => {
-            let vec = self.ivec(it);
-            let rhs = self.num(it).unwrap();
-            let out = self.num(it).unwrap();
-            assert!(self.num(it).unwrap() == 0, "parse error at char {} for bnn, invalid bnn format.", ch());
-            Segment::Bnn(idx, vec, rhs, out)
-          }
+          Some(idx) => Segment::BnnLhs(idx, self.ivec(it)),
           None => Segment::BnnImply()
         }
+      }
+      Some(b'k') => {
+        let rhs = self.num(it).unwrap();
+        let out = self.num(it).unwrap();
+        assert!(self.num(it).unwrap() == 0, "parse error at char {} for bnn, invalid bnn format.", ch());
+        Segment::BnnRhs(rhs, out)
       }
       Some(k) => panic!("parse error at char {}: bad step {:?}", ch(), k as char),
       None => panic!("parse error at char {}: bad step None", ch()),
@@ -130,7 +130,8 @@ pub enum Segment {
   ImplyXor(),
   FinalXor(),
   Unit(Vec<u64>),
-  Bnn(u64, Vec<i64>, i64, i64),
+  BnnLhs(u64, Vec<i64>),
+  BnnRhs(i64, i64),
   BnnImply(),
 }
 

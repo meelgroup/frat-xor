@@ -1124,7 +1124,7 @@ fn elab<M: Mode>(
 
   for (i, ls) in origs { ElabStep::Orig(i, ls.into()).write(w)? }
   for (i, ls) in orig_xors { ElabStep::OrigXor(i, ls).write(w)? }
-  // for (i, ls, rhs, out) in orig_bnns { ElabStep::OrigBnn(i, ls, rhs, out).write(w)? }
+  for (i, ls, rhs, out) in orig_bnns { ElabStep::OrigBnn(i, ls, rhs, out).write(w)? }
 
   assert!(finalized_empty_clause, "empty clause never finalized");
   Ok(())
@@ -1191,6 +1191,7 @@ fn trim(
       } else {unreachable!()}
     } else if let ElabStep::OrigBnn(_, _, _, _) = s {
       if let Some(ElabStep::OrigBnn(_i, _ls, _rhs, _out)) = bp.next() {
+        // no orig bnn for xlrup
         // write!(lrat, "o b {}", i)?;
         // for &x in &*ls { write!(lrat, " {}", x)? }
         // writeln!(lrat, " 0 {} {} 0", rhs, out)?;
