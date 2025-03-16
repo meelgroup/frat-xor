@@ -178,6 +178,12 @@ BNN_DEL_STEP ::= d b BID lits 0 k cutoff output_lit 0
 CLAUSE_FROM_BNN_STEP ::= i CID CLAUSE 0 b l BID 0 u CIDs 0
 ```
 
+- Update a BNN with the indicated unit clauses.
+
+```
+BNN_UPDATE_STEP ::= i b BID BNN 0 l BID CIDs 0
+```
+
 - Indicate a final BNN (currently, these steps are not checked).
 
 ```
@@ -243,6 +249,12 @@ BNN_DEL_STEP ::= b d BIDs 0
 
 ```
 CLAUSE_FROM_BNN_STEP ::= i cb CID CLAUSE 0 BID u CIDs 0
+```
+
+- BNN can be derived from BNN and unit clauses (`i b` stands for "implies BNN")
+
+```
+BNN_UPDATE_STEP := i b BID BNN 0 BID CIDs 0
 ```
 
 ### Experimental
