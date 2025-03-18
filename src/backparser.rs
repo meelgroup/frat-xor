@@ -208,6 +208,7 @@ impl<I: Iterator<Item=Segment>> Iterator for StepIter<I> {
       }
       Some(Segment::BnnLhs(idx, _vec)) => panic!("bnn step {}: 'b' step not followed by 'k' step", idx),
       Some(Segment::BnnImply()) => _panic(self, "wrong format for 'b' step", None), 
+      Some(Segment::Error()) => _panic(self, "parse error", None),
     }
   }
 }
@@ -218,6 +219,35 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
   type Item = ElabStep;
 
   fn next(&mut self) -> Option<ElabStep> {
+
+    fn _panic<I: Iterator<Item=Segment>>(self_ref: &mut ElabStepIter<I>, msg: &str, mut next: Option<Segment>) -> Option<ElabStep> {
+      if let None = next {
+        next = self_ref.0.next()
+      }
+
+      loop {
+        match next {
+          Some(Segment::Orig(idx, _)) => panic!("orig step {}: {}", idx, msg),
+          Some(Segment::Add(idx, _)) => panic!("add step {}: {}", idx, msg),
+          Some(Segment::Del(idx, _)) => panic!("del step {}: {}", idx, msg),
+          Some(Segment::Final(idx, _)) => panic!("final step {}: {}", idx, msg),
+          Some(Segment::Xor(idx, _)) => match self_ref.0.next() {
+            Some(Segment::DelHead()) => panic!("del-xor step {}: {}", idx, msg),
+            Some(Segment::FinalHead()) => panic!("final-xor step {}: {}", idx, msg),
+            _ => panic!("xor step {}: {}", idx, msg),
+          }
+          Some(Segment::BnnLhs(idx, _)) => match self_ref.0.next() {
+            Some(Segment::DelHead()) => panic!("del-bnn step {}: {}", idx, msg),
+            Some(Segment::FinalHead()) => panic!("final-bnn step {}: {}", idx, msg),
+            _ => panic!("bnn step {}: {}", idx, msg),
+          }
+          Some(Segment::Imply(idx, _)) => panic!("imply step {}: {}", idx, msg),
+          None => panic!("{}", msg),
+          _ => { next = self_ref.0.next() },
+        }
+      }
+    }
+
     match self.0.next() {
       None => None,
       Some(Segment::Comment(s)) => Some(ElabStep::Comment(s)),
@@ -287,6 +317,7 @@ impl<I: Iterator<Item=Segment>> Iterator for ElabStepIter<I> {
         _ => panic!("bnn step {}: 'b' step not followed by 'k' step", idx),
       }
       Some(Segment::BnnImply()) => panic!("wrong format for 'b' step"), 
+      Some(Segment::Error()) => _panic(self, "parse error", None),
     }
   }
 }

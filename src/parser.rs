@@ -89,13 +89,24 @@ pub trait Mode: Default {
         }
       }
       Some(b'k') => {
-        let rhs = self.num(it).unwrap();
-        let out = self.num(it).unwrap();
-        assert!(self.num(it).unwrap() == 0, "parse error at char {} for bnn, invalid bnn format.", ch());
-        Segment::BnnRhs(rhs, out)
+        if let Some(rhs) = self.num(it) {
+          if let Some(out) = self.num(it) {
+            if let Some(rem) = self.num(it) {
+              if rem != 0 {
+                println!("parse error at char {} for bnn, invalid bnn format.", ch());
+                return Segment::Error();
+              }
+            }
+            Segment::BnnRhs(rhs, out)
+          } else {
+            Segment::Error()   
+          }
+        } else {
+          Segment::Error()
+        }
       }
-      Some(k) => panic!("parse error at char {}: bad step {:?}", ch(), k as char),
-      None => panic!("parse error at char {}: bad step None", ch()),
+      Some(k) => { println!("parse error at char {}: bad step {:?}", ch(), k as char); Segment::Error() }
+      None => { println!("parse error at char {}: bad step None", ch()); Segment::Error() } 
     }
   }
 
@@ -105,7 +116,12 @@ pub trait Mode: Default {
 
   fn segment(&self, ch: impl Fn() -> usize, mut it: impl Iterator<Item=u8>) -> Segment {
     let seg = self.segment_mut(&ch, &mut it);
-    assert!(self.check_empty(it), "parse error at char {}: segment has trailing characters", ch());
+    if let Segment::Error() = seg {
+       // println!("parse error");
+    } else if !self.check_empty(it) {
+       println!("parse error at char {}: segment has trailing characters", ch());
+       return Segment::Error();
+    }
     seg
   }
 
@@ -133,6 +149,7 @@ pub enum Segment {
   BnnLhs(u64, Vec<i64>),
   BnnRhs(i64, i64),
   BnnImply(),
+  Error(),
 }
 
 #[derive(Default)] pub struct Bin;
