@@ -239,6 +239,12 @@ XOR_FROM_CLAUSE_STEP ::= i x XID XOR 0 CIDs 0
 
 BNN reasoning behaves like a simpler version of XOR reasoning.
 
+- Indicate an original BNN and give it the `BID` identifier.
+
+```
+BNN_ORIG_STEP ::= o b BID BNN 0
+```
+
 - BNN deletion
 
 ```
@@ -251,7 +257,7 @@ BNN_DEL_STEP ::= b d BIDs 0
 CLAUSE_FROM_BNN_STEP ::= i cb CID CLAUSE 0 BID u CIDs 0
 ```
 
-- BNN can be derived from BNN and unit clauses (`i b` stands for "implies BNN")
+- BNN can be derived from BNN and unit clauses
 
 ```
 BNN_ADD_STEP := b BID BNN 0 BID CIDs 0
