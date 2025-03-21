@@ -47,9 +47,9 @@ pub trait Mode: Default {
     match self.keyword(it) {
       Some(b'c') => Segment::Comment(self.comment(it)),
       Some(b'a') => match self.unum(it) {
-        Some(0) => Segment::AddXor(),
+        Some(0) => Segment::AddHead(),
         Some(idx) => Segment::Add(idx, self.ivec(it)),
-        None => Segment::AddXor(),
+        None => Segment::AddHead(),
       }
       Some(b'd') => match self.unum(it) {
         Some(0) => Segment::DelHead(),
@@ -75,9 +75,9 @@ pub trait Mode: Default {
       }
       Some(b'x') => Segment::Xor(self.unum(it).unwrap(), self.ivec(it)),
       Some(b'i') => match self.unum(it) { 
-        Some(0) => Segment::ImplyXor(),
+        Some(0) => Segment::ImplyHead(),
         Some(idx) => Segment::Imply(idx, self.ivec(it)),
-        None => Segment::ImplyXor(),
+        None => Segment::ImplyHead(),
       }
       Some(b'u') => Segment::Unit(self.uvec(it)),
       Some(b'b') => {
@@ -140,10 +140,10 @@ pub enum Segment {
   Todo(u64),
   Xor(u64, Vec<i64>),
   OrigHead(),
-  AddXor(),
+  AddHead(),
   DelHead(),
   Imply(u64, Vec<i64>),
-  ImplyXor(),
+  ImplyHead(),
   FinalHead(),
   Unit(Vec<u64>),
   BnnLhs(u64, Vec<i64>),
@@ -518,6 +518,7 @@ pub enum Step {
   ImplyXor(u64, Vec<i64>, Option<Proof>),
   FinalXor(u64, Vec<i64>),
   OrigBnn(u64, Vec<i64>, i64, i64),
+  AddBnn(u64, Vec<i64>, i64, i64, Option<Proof>),
   BnnImply(u64, Vec<i64>, Option<Proof>, Option<Proof>),
   DelBnn(u64, Vec<i64>, i64, i64),
   FinalBnn(u64, Vec<i64>, i64, i64),
@@ -539,6 +540,7 @@ pub enum StepRef<'a> {
   ImplyXor(u64, &'a [i64], Option<ProofRef<'a>>),
   FinalXor(u64, &'a [i64]),
   OrigBnn(u64, &'a [i64], i64, i64),
+  AddBnn(u64, &'a [i64], i64, i64, Option<ProofRef<'a>>),
   BnnImply(u64, &'a [i64], Option<ProofRef<'a>>, Option<ProofRef<'a>>),
   DelBnn(u64, &'a [i64], i64, i64),
   FinalBnn(u64, &'a [i64], i64, i64),
@@ -561,6 +563,7 @@ impl Step {
       Step::ImplyXor(i, ref v, ref p) => StepRef::ImplyXor(i, v, p.as_ref().map(Proof::as_ref)),
       Step::FinalXor(i, ref v) => StepRef::FinalXor(i, v),
       Step::OrigBnn(i, ref v, r, o) => StepRef::OrigBnn(i, v, r, o),
+      Step::AddBnn(i, ref v, r, o, ref p) => StepRef::AddBnn(i, v, r, o, p.as_ref().map(Proof::as_ref)),
       Step::BnnImply(i, ref v, ref p, ref u) => StepRef::BnnImply(i, v, p.as_ref().map(Proof::as_ref), u.as_ref().map(Proof::as_ref)),
       Step::DelBnn(i, ref v, r, o) => StepRef::DelBnn(i, v, r, o),
       Step::FinalBnn(i, ref v, r, o) => StepRef::FinalBnn(i, v, r, o),
@@ -581,6 +584,9 @@ impl<'a> StepRef<'a> {
   #[inline] pub fn imply_xor(idx: u64, ls: &'a [i64], proof: Option<&'a [i64]>) -> Self {
     Self::ImplyXor(idx, ls, proof.map(ProofRef::LRAT))
   }
+  #[inline] pub fn add_bnn(idx: u64, ls: &'a [i64], rhs: i64, out: i64, proof: Option<&'a [i64]>) -> Self {
+    Self::AddBnn(idx, ls, rhs, out, proof.map(ProofRef::LRAT))
+  }
   #[inline] pub fn bnn_imply(idx: u64, ls: &'a [i64], proof: Option<&'a [i64]>, u: Option<&'a Proof>) -> Self {
     Self::BnnImply(idx, ls, proof.map(ProofRef::LRAT), u.map(Proof::as_ref))
   }
@@ -599,6 +605,7 @@ pub enum ElabStep {
   Imply(u64, Vec<i64>, Vec<i64>),
   ImplyXor(u64, Vec<i64>, Vec<i64>),
   OrigBnn(u64, Vec<i64>, i64, i64),
+  AddBnn(u64, Vec<i64>, i64, i64, Vec<i64>),
   BnnImply(u64, Vec<i64>, Vec<i64>, Option<Proof>),
   DelBnn(u64),
 }
@@ -616,6 +623,7 @@ pub enum ElabStepRef<'a> {
   Imply(u64, &'a [i64], &'a [i64]),
   ImplyXor(u64, &'a [i64], &'a [i64]),
   OrigBnn(u64, &'a [i64], i64, i64),
+  AddBnn(u64, &'a [i64], i64, i64, &'a [i64]),
   BnnImply(u64, &'a [i64], &'a [i64], Option<ProofRef<'a>>),
   DelBnn(u64),
 }
@@ -634,6 +642,7 @@ impl ElabStep {
       ElabStep::Imply(i, ref v, ref p) => ElabStepRef::Imply(i, v, p),
       ElabStep::ImplyXor(i, ref v, ref p) => ElabStepRef::ImplyXor(i, v, p),
       ElabStep::OrigBnn(i, ref v, r, o) => ElabStepRef::OrigBnn(i, v, r, o),
+      ElabStep::AddBnn(i, ref v, r, o, ref p) => ElabStepRef::AddBnn(i, v, r, o, p),
       ElabStep::BnnImply(i, ref v, ref p, ref u) => ElabStepRef::BnnImply(i, v, p, u.as_ref().map(Proof::as_ref)),
       ElabStep::DelBnn(i) => ElabStepRef::DelBnn(i),
     }

@@ -1091,6 +1091,30 @@ fn elab<M: Mode>(
         orig_bnns.push((i, ls.clone(), rhs, out));
       }
 
+      Step::AddBnn(i, ls, rhs, out, p) => {
+        if let Some(Proof::LRAT(is)) = p {
+          for &i in (&is).iter().skip(1) {
+            let i = i.unsigned_abs();
+            let c = ctx.get(i);
+            let cl = &mut ctx.clauses[c];
+            if !cl.marked { // If the necessary clause is not active yet
+              cl.marked = true; // Make it active
+              if let [a, b, ..] = *cl.lits {
+                ctx.watch.del(false, a, c);
+                ctx.watch.del(false, b, c);
+                ctx.watch.add(true, a, c);
+                ctx.watch.add(true, b, c);
+              }
+              if !full { ElabStep::Del(i).write(w)? }
+            }
+          }
+
+          ElabStep::AddBnn(i, ls, rhs, out, is).write(w)?
+        } else {
+          panic!("add-bnn step {}: add BNN step has no proof", i);
+        }
+      } 
+
       Step::DelBnn(i, _ls, _rhs, _out) => {
         ElabStep::DelBnn(i).write(w)?
       }
@@ -1201,11 +1225,14 @@ fn trim(
         writeln!(lrat, " 0")?;
       } else {unreachable!()}
     } else if let ElabStep::OrigBnn(_, _, _, _) = s {
-      if let Some(ElabStep::OrigBnn(_i, _ls, _rhs, _out)) = bp.next() {
-        // no orig bnn for xlrup
-        // write!(lrat, "o b {}", i)?;
-        // for &x in &*ls { write!(lrat, " {}", x)? }
-        // writeln!(lrat, " 0 {} {} 0", rhs, out)?;
+      if let Some(ElabStep::OrigBnn(i, ls, rhs, out)) = bp.next() {
+        write!(lrat, "o b {}", i)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        if out == 0 {
+          writeln!(lrat, " 0 {} 0", rhs)?;
+        } else {
+          writeln!(lrat, " 0 {} {} 0", rhs, out)?;
+        }
       } else {unreachable!()} 
     } else {
       break;
@@ -1368,6 +1395,24 @@ fn trim(
 
       ElabStep::OrigBnn(i, _, _, _) =>
         panic!("orig-bnn step {}: Orig BNN steps must come at the beginning of the temp file", i),
+
+      ElabStep::AddBnn(i, ls, rhs, out, mut is) => {
+        write!(lrat, "b {}", i)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        if out == 0 {
+          write!(lrat, " 0 {} 0", rhs)?;
+        } else {
+          write!(lrat, " 0 {} {} 0", rhs, out)?;
+        }
+
+        for x in is.iter_mut().skip(1) {
+          let ux = x.unsigned_abs();
+          *x = *map.get(&ux).unwrap_or_else(||
+            panic!("add-bnn step {}: clause-proof step {:?} not found", i, ux)) as i64;
+        }
+        for &x in &*is { write!(lrat, " {}", x)? }
+        writeln!(lrat, " 0")?;
+      }
 
       ElabStep::DelBnn(i) => writeln!(lrat, "b d {} 0", i)?,
 
@@ -1618,6 +1663,11 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
 
       ElabStep::OrigBnn(i, ls, rhs, out) => {
         StepRef::OrigBnn(i, &ls, rhs, out).write(w)?;
+        ctx_bnn.insert(i, (ls, rhs, out));
+      }
+
+      ElabStep::AddBnn(i, ls, rhs, out, is) => {
+        StepRef::add_bnn(i, &ls, rhs, out, Some(&is)).write(w)?;
         ctx_bnn.insert(i, (ls, rhs, out));
       }
 
