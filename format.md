@@ -6,7 +6,7 @@ It is based on an extension of FRAT (RUP) with support for XOR and BNN reasoning
 
 ## Overview
 
-The FRAT-XOR-BNN proof format supports FRAT-style proofs extended with XOR reasoning; this format is designed to be easily emitted by CNF-XOR-BNN solvers.
+The FRAT-XOR-BNN proof format supports FRAT-style proofs extended with theory reasoning; the current design is meant to be easily emitted by CNF-XOR-BNN solvers.
 
 Correspondingly, XLRUP is an elaborated proof format supported by the `cake_xlrup` verified proof checker.
 
@@ -14,7 +14,7 @@ Conversion from FRAT-XOR-BNN to XLRUP is supported by the `frat-xor` tool.
 
 Our extensions follow a suggestion from the FRAT paper: "... it could pass the new methods on to some XLRAT backend format that understands these steps natively".
 
-In particular, the XOR reasoning steps are *only* checked by `cake_xlrup`, but are mostly passed through unchanged by the elaborator (except for doing some bookkeeping).
+In particular, the XOR and BNN reasoning steps are *only* checked by `cake_xlrup`, but are mostly passed through unchanged by the elaborator (except for doing some bookkeeping).
 
 Note, however, that we do not support RAT steps.
 
@@ -53,10 +53,10 @@ Syntactically, clauses and XORs are both represented by lists of non-zero intege
 CLAUSE, XOR ::= { list of non-zero integers }
 ```
 
-A BNN constraint is represented by a list of non-zero integers followed by zero and two non-zero integers.
+A BNN constraint is represented by a list of non-zero integers followed by zero and two non-zero integers; the latter non-zero integer is optional.
 
 ```
-BNN ::= { list of non-zero integers } 0 cutoff output_lit
+BNN ::= { list of non-zero integers } 0 cutoff [optional: output_lit]
 ```
 
 To list a clause in the input file, write a line with a clause followed by a zero:
@@ -78,12 +78,12 @@ For example, the line `x 1 -2 3 0` represents the XOR `x_1 XOR NOT(x_2) XOR x_3 
 To represent a BNN in the input file, start the line with `b` followed by the constraint and end it with zero:
 
 ```
-BNN_LINE ::= b { list of non-zero integers } 0 cutoff output_lit 0
+BNN_LINE ::= b { list of non-zero integers } 0 cutoff [optional: output_lit] 0
 ```
 
 For example, the line `b 1 2 3 0 3 4 0` represents the BNN constraint `x_1 + x_2 + x_3 >= 3 <-> x_4`.
 
-Ideally, we also want to use `b 1 2 3 0 3 0` to represent a cardinality constraint `x_1 + x_2 + x_3 >= 3` as well, i.e., a BNN constraint where the output_lit is True.
+If the output literal is omitted, then the BNN constraint reduces to an at-most-K constraint, i.e., `b 1 2 3 0 3 0` represents the constraint `x_1 + x_2 + x_3 >= 3`.
 
 However, the current CMS does not handle the case properly when the output_lit is missing in the input BNN. We will resolve this issue and add the cardinality constraint extension to the format.
 
@@ -178,10 +178,10 @@ BNN_DEL_STEP ::= d b BID lits 0 k cutoff output_lit 0
 CLAUSE_FROM_BNN_STEP ::= i CID CLAUSE 0 b l BID 0 u CIDs 0
 ```
 
-- Update a BNN with the indicated unit clauses.
+- Add a new BNN derived from an existing BNN with unit propagations from CIDs.
 
 ```
-BNN_UPDATE_STEP ::= i b BID BNN 0 l BID CIDs 0
+BNN_UPDATE_STEP ::= a b BID BNN 0 l BID CIDs 0
 ```
 
 - Indicate a final BNN (currently, these steps are not checked).
@@ -239,6 +239,12 @@ XOR_FROM_CLAUSE_STEP ::= i x XID XOR 0 CIDs 0
 
 BNN reasoning behaves like a simpler version of XOR reasoning.
 
+- Indicate an original BNN and give it the `BID` identifier.
+
+```
+BNN_ORIG_STEP ::= o b BID BNN 0
+```
+
 - BNN deletion
 
 ```
@@ -251,10 +257,10 @@ BNN_DEL_STEP ::= b d BIDs 0
 CLAUSE_FROM_BNN_STEP ::= i cb CID CLAUSE 0 BID u CIDs 0
 ```
 
-- BNN can be derived from BNN and unit clauses (`i b` stands for "implies BNN")
+- BNN can be derived from BNN and unit clauses
 
 ```
-BNN_UPDATE_STEP := i b BID BNN 0 BID CIDs 0
+BNN_ADD_STEP := b BID BNN 0 BID CIDs 0
 ```
 
 ### Experimental
