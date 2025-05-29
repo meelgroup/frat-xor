@@ -7,9 +7,9 @@ Source and proof files are available in the main CakeML repository (https://gith
 The files are built from the following repository versions
 
 ```
-HOL4: e006edd4c63dd1e725e8e19b18807bb13f96db1e
+HOL4: 37389f39aa1f331637b2525ad92fdba43703a13e
 
-CakeML: d4f0662af8596e6f964e54519b206be44e5b9f71
+CakeML: 87cc789f3bc9e81d3c9fa42cc1407635fa73bf6b
 ```
 
 # Instructions
@@ -17,7 +17,7 @@ CakeML: d4f0662af8596e6f964e54519b206be44e5b9f71
 Running `make` will build the proof checker (default 4GB heap/stack).
 
 ```
-Usage:  cake_xlrup <CNF XOR formula file> <optional: XLRUP proof file>
+Usage:  cake_xlrup <formula file> <optional: XLRUP proof file>
 
 Run XLRUP unsatisfiability proof checking (if proof is given)
 ```
