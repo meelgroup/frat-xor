@@ -9,7 +9,7 @@ The files are built from the following repository versions
 ```
 HOL4: 37389f39aa1f331637b2525ad92fdba43703a13e
 
-CakeML: 87cc789f3bc9e81d3c9fa42cc1407635fa73bf6b
+CakeML: e1650fc504837c0fbd3931cc5066914ffdc9d877
 ```
 
 # Instructions
