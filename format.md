@@ -1,4 +1,4 @@
-# CNF-XOR-BNN proof format
+# CNF extended proof format
 
 This file gives a provisional spec for a CNF proof format extended with theories (currently, XOR and BNN reasoning).
 
@@ -6,7 +6,7 @@ It is based on an extension of FRAT (RUP) with support for XOR and BNN reasoning
 
 ## Overview
 
-The FRAT-XOR-BNN proof format supports FRAT-style proofs extended with theory reasoning; the current design is meant to be easily emitted by CNF-XOR-BNN solvers.
+The proof format supports FRAT-style proofs extended with theory reasoning; the current design is meant to be easily emitted by CNF-XOR-BNN solvers.
 
 Correspondingly, XLRUP is an elaborated proof format supported by the `cake_xlrup` verified proof checker.
 
@@ -16,11 +16,11 @@ Our extensions follow a suggestion from the FRAT paper: "... it could pass the n
 
 In particular, the XOR and BNN reasoning steps are *only* checked by `cake_xlrup`, but are mostly passed through unchanged by the elaborator (except for doing some bookkeeping).
 
-Note, however, that we do not support RAT steps.
+Note, however, that we do not support RAT steps which requires global reasoning over all constraints.
 
-## Input CNF-XOR-BNN File Format
+## Input File Format
 
-The input CNF-XOR-BNN file format is an extension of CNF DIMACS as supported by the CryptoMiniSat solver.
+The input file format is an extension of CNF DIMACS as supported by the CryptoMiniSat solver.
 
 ### Comments
 
@@ -178,7 +178,7 @@ BNN_DEL_STEP ::= d b BID lits 0 k cutoff output_lit 0
 CLAUSE_FROM_BNN_STEP ::= i CID CLAUSE 0 b l BID 0 u CIDs 0
 ```
 
-- Add a new BNN derived from an existing BNN with unit propagations from CIDs.
+- Add a new BNN derived from an existing BNN with unit propagations from CIDs. (***NOTE:*** This step is planned, but currently not yet supported by the XLRUP backend.)
 
 ```
 BNN_UPDATE_STEP ::= a b BID BNN 0 l BID CIDs 0
@@ -257,7 +257,7 @@ BNN_DEL_STEP ::= b d BIDs 0
 CLAUSE_FROM_BNN_STEP ::= i cb CID CLAUSE 0 BID u CIDs 0
 ```
 
-- BNN can be derived from BNN and unit clauses
+- BNN can be derived from BNN and unit clauses. (***NOTE:*** This step is planned, but currently not yet supported by the XLRUP backend.)
 
 ```
 BNN_ADD_STEP := b BID BNN 0 BID CIDs 0
