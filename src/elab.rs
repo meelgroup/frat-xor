@@ -919,6 +919,7 @@ fn elab<M: Mode>(
 ) -> io::Result<()> {
   let mut origs = Vec::new();
   let mut orig_xors = Vec::new();
+  let mut orig_bnns = Vec::new();
   let ctx = &mut Context::default();
   ctx.full = full;
   ctx.validate_hints = validate;
@@ -1085,11 +1086,80 @@ fn elab<M: Mode>(
             'f x' steps should only appear at the end of the proof (step {} appears later).", i, j);
         }
       }
+
+      Step::OrigBnn(i, ls, rhs, out) => {
+        orig_bnns.push((i, ls.clone(), rhs, out));
+      }
+
+      Step::AddBnn(i, ls, rhs, out, p) => {
+        if let Some(Proof::LRAT(is)) = p {
+          for &i in (&is).iter().skip(1) {
+            let i = i.unsigned_abs();
+            let c = ctx.get(i);
+            let cl = &mut ctx.clauses[c];
+            if !cl.marked { // If the necessary clause is not active yet
+              cl.marked = true; // Make it active
+              if let [a, b, ..] = *cl.lits {
+                ctx.watch.del(false, a, c);
+                ctx.watch.del(false, b, c);
+                ctx.watch.add(true, a, c);
+                ctx.watch.add(true, b, c);
+              }
+              if !full { ElabStep::Del(i).write(w)? }
+            }
+          }
+
+          ElabStep::AddBnn(i, ls, rhs, out, is).write(w)?
+        } else {
+          panic!("add-bnn step {}: add BNN step has no proof", i);
+        }
+      } 
+
+      Step::DelBnn(i, _ls, _rhs, _out) => {
+        ElabStep::DelBnn(i).write(w)?
+      }
+
+      Step::BnnImply(i, ls, p, u) => {
+        ctx.step = i;
+        let c = ctx.remove(i);
+        c.check_subsumed(&ls, ctx.step);
+
+        if let Some(Proof::LRAT(is)) = p {
+          if let Some(Proof::Unit(ref units)) = u {
+            for &i in units {
+              let c = ctx.get(i);
+              let cl = &mut ctx.clauses[c];
+              if !cl.marked { // If the necessary clause is not active yet
+                cl.marked = true; // Make it active
+                if let [a, b, ..] = *cl.lits {
+                  ctx.watch.del(false, a, c);
+                  ctx.watch.del(false, b, c);
+                  ctx.watch.add(true, a, c);
+                  ctx.watch.add(true, b, c);
+                }
+                if !full { ElabStep::Del(i).write(w)? }
+              }
+            }
+          }
+
+          ElabStep::BnnImply(i, ls, is, u).write(w)?
+        } else {
+          panic!("bnn imply step {}: bnn imply step has no proof", i);
+        }
+      }
+
+      Step::FinalBnn(i, _ls, _rhs, _out) => {
+        if let Some(j) = last_non_finalize {
+          panic!("final-bnn step {}: \
+            'f b' steps should only appear at the end of the proof (step {} appears later).", i, j);
+        }
+      }
     }
   }
 
   for (i, ls) in origs { ElabStep::Orig(i, ls.into()).write(w)? }
   for (i, ls) in orig_xors { ElabStep::OrigXor(i, ls).write(w)? }
+  for (i, ls, rhs, out) in orig_bnns { ElabStep::OrigBnn(i, ls, rhs, out).write(w)? }
 
   assert!(finalized_empty_clause, "empty clause never finalized");
   Ok(())
@@ -1154,6 +1224,16 @@ fn trim(
         for &x in &*ls { write!(lrat, " {}", x)? }
         writeln!(lrat, " 0")?;
       } else {unreachable!()}
+    } else if let ElabStep::OrigBnn(_, _, _, _) = s {
+      if let Some(ElabStep::OrigBnn(i, ls, rhs, out)) = bp.next() {
+        write!(lrat, "o b {}", i)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        if out == 0 {
+          writeln!(lrat, " 0 {} 0", rhs)?;
+        } else {
+          writeln!(lrat, " 0 {} {} 0", rhs, out)?;
+        }
+      } else {unreachable!()} 
     } else {
       break;
     }
@@ -1289,7 +1369,7 @@ fn trim(
         k += 1;
         map.insert(i, k);
         let done = ls.is_empty();
-        write!(lrat, "i {}", k)?;
+        write!(lrat, "i cx {}", k)?;
         for &x in &*ls { write!(lrat, " {}", x)? }
         write!(lrat, " 0")?;
 
@@ -1311,6 +1391,53 @@ fn trim(
         }
         for &x in &*is { write!(lrat, " {}", x)? }
         writeln!(lrat, " 0")?;
+      }
+
+      ElabStep::OrigBnn(i, _, _, _) =>
+        panic!("orig-bnn step {}: Orig BNN steps must come at the beginning of the temp file", i),
+
+      ElabStep::AddBnn(i, ls, rhs, out, mut is) => {
+        write!(lrat, "b {}", i)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        if out == 0 {
+          write!(lrat, " 0 {} 0", rhs)?;
+        } else {
+          write!(lrat, " 0 {} {} 0", rhs, out)?;
+        }
+
+        for x in is.iter_mut().skip(1) {
+          let ux = x.unsigned_abs();
+          *x = *map.get(&ux).unwrap_or_else(||
+            panic!("add-bnn step {}: clause-proof step {:?} not found", i, ux)) as i64;
+        }
+        for &x in &*is { write!(lrat, " {}", x)? }
+        writeln!(lrat, " 0")?;
+      }
+
+      ElabStep::DelBnn(i) => writeln!(lrat, "b d {} 0", i)?,
+
+      ElabStep::BnnImply(i, ls, is, u) => {
+        k += 1;
+        map.insert(i, k);
+        let done = ls.is_empty();
+        write!(lrat, "i cb {}", k)?;
+        for &x in &*ls { write!(lrat, " {}", x)? }
+        write!(lrat, " 0")?;
+
+        for &x in &*is { write!(lrat, " {}", x)? }
+
+        if let Some(Proof::Unit(mut units)) = u {
+          for ux in units.iter_mut() {
+            *ux = *map.get(&ux).unwrap_or_else(||
+              panic!("bnn-imply step {}: unit-proof step {:?} not found", i, ux)) as u64;
+          }
+          write!(lrat, " u")?;
+          for &x in &*units { write!(lrat, " {}", x)? }
+        }
+
+        writeln!(lrat, " 0")?;
+
+        if done {return Ok(())}
       }
     }
   }
@@ -1480,6 +1607,7 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
 
   let mut ctx: HashMap<u64, Vec<i64>> = HashMap::default();
   let mut ctx_xor: HashMap<u64, Vec<i64>> = HashMap::default();
+  let mut ctx_bnn: HashMap<u64, (Vec<i64>, i64, i64)> = HashMap::default();
   for s in ElabStepIter(BackParser::new(Bin, elab)?) {
     // eprintln!("-> {:?}", s);
 
@@ -1532,11 +1660,32 @@ fn refrat_pass(elab: File, w: &mut impl ModeWrite) -> io::Result<()> {
         StepRef::imply_xor(i, &ls, Some(&is)).write(w)?;
         ctx_xor.insert(i, ls);
       }
+
+      ElabStep::OrigBnn(i, ls, rhs, out) => {
+        StepRef::OrigBnn(i, &ls, rhs, out).write(w)?;
+        ctx_bnn.insert(i, (ls, rhs, out));
+      }
+
+      ElabStep::AddBnn(i, ls, rhs, out, is) => {
+        StepRef::add_bnn(i, &ls, rhs, out, Some(&is)).write(w)?;
+        ctx_bnn.insert(i, (ls, rhs, out));
+      }
+
+      ElabStep::DelBnn(i) => {
+        let (ls, rhs, out) = ctx_bnn.remove(&i).unwrap();
+        Step::DelBnn(i, ls, rhs, out).write(w)?;
+      }
+
+      ElabStep::BnnImply(i, ls, is, u) => {
+        StepRef::bnn_imply(i, &ls, Some(&is), u.as_ref()).write(w)?;
+        ctx.insert(i, ls);
+      }
     }
   }
 
   for (i, s) in ctx { Step::Final(i, s).write(w)? }
   // todo: add XOR to final
+  // todo: add BNN to final
 
   Ok(())
 }

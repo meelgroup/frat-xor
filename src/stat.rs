@@ -13,8 +13,8 @@ fn subsumes(clause: &[i64], clause2: &[i64]) -> bool {
 
 pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
   let mut bp = StepIter(BackParser::new(mode, proof)?).peekable();
-  let (mut orig, mut added, mut deleted, mut fin, mut _orig_xor, mut _add_xor, mut _del_xor, mut _imply, mut _imply_xor, mut _fin_xor) = (0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64);
-  let (mut dirty_orig, mut dirty_add, mut dirty_imply, mut double_del, mut double_fin) = (0i64, 0i64, 0i64, 0i64, 0i64);
+  let (mut orig, mut added, mut deleted, mut fin, mut _orig_xor, mut _add_xor, mut _del_xor, mut _imply, mut _imply_xor, mut _fin_xor, mut _orig_bnn, mut _add_bnn, mut _del_bnn, mut _bnn_imply, mut _fin_bnn) = (0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64, 0i64);
+  let (mut dirty_orig, mut dirty_add, mut dirty_imply, mut dirty_bnn_imply, mut double_del, mut double_fin) = (0i64, 0i64, 0i64, 0i64, 0i64, 0i64);
   let mut missing = 0i64;
   let mut active: HashMap<u64, (bool, Clause)> = HashMap::default();
   let mut todos = HashMap::default();
@@ -138,6 +138,47 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
       Step::FinalXor(_i, _lits) => {
         _fin_xor += 1;
       }, 
+      Step::OrigBnn(_i, _lits, _rhs, _out) => {
+        _orig_bnn += 1;
+      },
+      Step::AddBnn(_i, _lits, _rhs, _out, p) => {
+        _add_bnn += 1;
+        if let Some(Proof::LRAT(steps)) = p {
+          for s in steps.iter().skip(1) {
+            let needed = &mut active.get_mut(&s.unsigned_abs()).expect("bad clause hints for add-bnn step").0;
+            if !*needed {
+              *needed = true;
+            }
+          }
+        }
+      },
+      Step::DelBnn(_i, _lits, _rhs, _out) => {
+        _del_bnn += 1;
+      },
+      Step::BnnImply(i, lits, _p, u) => {
+        _bnn_imply += 1;
+        if let Some((_need, lits2)) = active.remove(&i) {
+          if !subsumes(&lits2, &lits) {
+            eprintln!("bnn imply step {}: added {:?}, removed {:?}", i, lits, lits2);
+            bad = true;
+          }
+        } else {
+          dirty_bnn_imply += 1;
+          // eprintln!("implied clause {} {:?} never finalized", i, lits);
+        }
+
+        if let Some(Proof::Unit(units)) = u {
+          for us in units {
+            let needed = &mut active.get_mut(&us).expect("bad unit hints for bnn-imply step").0;
+            if !*needed {
+              *needed = true;
+            }
+          }
+        }
+      },
+      Step::FinalBnn(_i, _lits, _rhs, _out) => {
+        _fin_bnn += 1;
+      }, 
     }
   }
   println!("{} orig + {} added - {} deleted - {} finalized = {}",
@@ -148,8 +189,8 @@ pub fn check_proof(mode: impl Mode, proof: File) -> io::Result<()> {
   for (k, v) in todo_vec.into_iter().take(5).filter(|&(_, v)| v != 0) {
     println!("type {}: {}", k, v);
   }
-  if dirty_orig != 0 || dirty_add != 0 || dirty_imply != 0 {
-    eprintln!("{} original + {} added + {} implied never finalized", dirty_orig, dirty_add, dirty_imply);
+  if dirty_orig != 0 || dirty_add != 0 || dirty_imply != 0 || dirty_bnn_imply != 0 {
+    eprintln!("{} original + {} added + {} implied + {} bnn-implied never finalized", dirty_orig, dirty_add, dirty_imply, dirty_bnn_imply);
     bad = true;
   }
   if double_del != 0 || double_fin != 0 {
