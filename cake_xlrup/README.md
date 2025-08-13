@@ -7,9 +7,9 @@ Source and proof files are available in the main CakeML repository (https://gith
 The files are built from the following repository versions
 
 ```
-HOL4: a81865b9bac5e3018a070980ce8f4a392c66c9c6
+HOL4 (Trindemossen-2): bdc6917eeafd45f1067c08b6061c2243c1b1edb0
 
-CakeML: 3dad466f2fd3c0673b9c47935b1a4865e68b0657
+CakeML: d9c5fbbcff5584962881949bdfdbad0504034ec1
 ```
 
 # Instructions
