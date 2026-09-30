@@ -263,6 +263,53 @@ CLAUSE_FROM_BNN_STEP ::= i cb CID CLAUSE 0 BID u CIDs 0
 BNN_ADD_STEP := b BID BNN 0 BID CIDs 0
 ```
 
+### Strictness of `i cx` and `i x`
+
+`cake_xlrup` does not accept every clause or XOR that the hints imply. It checks these two steps as follows.
+
+- `i cx`: the XORs at `XIDs` must add up to exactly the XOR whose literals are those of `CLAUSE`, so `CLAUSE` must be one of the clauses of the sum's CNF encoding. A clause that the sum merely implies, such as a weakening of one of those clauses, is rejected.
+- `i x`: every clause of the CNF encoding of `XOR` (the `2^(k-1)` clauses over its `k` literals with an even number of them negated) must contain one of the clauses at `CIDs`. No resolution between the clauses at `CIDs` is done.
+
+The examples below use the formula of [`cake_xlrup/example.xnf`](cake_xlrup/example.xnf), whose clauses 1, 2 and 3 are `x1 ∨ x2`, `¬x1 ∨ ¬x2` and `¬x3`.
+
+After the first three steps of [`cake_xlrup/example.xlrup`](cake_xlrup/example.xlrup), XOR 3 is `x3`. The next step can be either of these:
+
+```
+i cx 4 3 0 3 0          accepted: the XOR of the clause x3 is exactly XOR 3
+i cx 4 3 1 0 3 0        rejected: x3 ∨ x1 is implied by XOR 3, but is a weakening
+```
+
+An XOR whose encoding clauses each contain a hint clause is accepted:
+
+```
+i x 1 1 2 3 0 1 2 3 0   accepted: x1 ⊕ x2 ⊕ x3
+```
+
+Its four encoding clauses are `x1 ∨ x2 ∨ x3`, `x1 ∨ ¬x2 ∨ ¬x3`, `¬x1 ∨ x2 ∨ ¬x3` and `¬x1 ∨ ¬x2 ∨ x3`. They contain clause 1, clause 3, clause 3 and clause 2 respectively. Without hint 3 the step is rejected.
+
+An XOR that needs resolution between the hints is rejected, even though the hints imply it. Take this formula:
+
+```
+p cnf 3 4
+1 3 0
+2 -3 0
+-1 -2 0
+x 1 2 0
+```
+
+```
+i x 1 1 2 0 1 2 3 0     rejected: clauses do not imply XOR
+```
+
+The encoding of `x1 ⊕ x2` is `x1 ∨ x2` and `¬x1 ∨ ¬x2`. The second contains clause 3. The first follows only by resolving clauses 1 and 2 (`x1 ∨ x3` and `x2 ∨ ¬x3`), and it contains neither of them. Deriving the missing clause by RUP first makes the step pass:
+
+```
+4 1 2 0 1 2 0           RUP: x1 ∨ x2
+i x 1 1 2 0 4 3 0       accepted
+```
+
+These checks may be relaxed later if needed, for example to accept any clause that the XOR sum implies (`i cx`) or any XOR that the hint clauses imply (`i x`).
+
 ### Experimental
 
 The checkers support slightly more powerful XOR addition steps with builtin unit propagation.
@@ -278,3 +325,5 @@ The unit propagations are listed similarly for XLRUP.
 ```
 XLRUP_XOR_ADD_STEP ::= x XID XOR 0 XIDs u CIDs 0
 ```
+
+The `u CIDs` part is optional: without it, the step is the XOR addition above.
