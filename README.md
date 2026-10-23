@@ -46,7 +46,7 @@ frat-xor elab ./example/test_1.xfrat ./example/test_1.xnf ./example/test_1.xlrup
 The elaborated proof can be checked with `cake_xlrup`.
 
 ```
-cake_xlrup ./example/test_1.xnf ./example/test_1.xlrup
+cake_xlrup --no-binary ./example/test_1.xnf ./example/test_1.xlrup
 ```
 
 # References
