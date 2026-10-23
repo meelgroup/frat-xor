@@ -16,6 +16,8 @@ Our extensions follow a suggestion from the FRAT paper: "... it could pass the n
 
 In particular, the XOR and BNN reasoning steps are *only* checked by `cake_xlrup`, but are mostly passed through unchanged by the elaborator (except for doing some bookkeeping).
 
+***NOTE:*** The current `cake_xlrup` checks XOR steps only; it does not accept BNN constraints or BNN steps (see [`cake_xlrup/README.md`](cake_xlrup/README.md) for the last version that does).
+
 Note, however, that we do not support RAT steps which requires global reasoning over all constraints.
 
 ## Input File Format
